@@ -1,4 +1,4 @@
-MPDS platform API client written in Python
+MPDS platform Python API client
 ==========
 
-Please, see [developer.mpds.io](http://developer.mpds.io).
+This library follows the [standardization guideline](https://github.com/hackingmaterials/matminer) on data mining for materials science. Please, see the [developer docs](http://developer.mpds.io).

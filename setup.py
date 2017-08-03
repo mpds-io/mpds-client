@@ -34,7 +34,7 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6'
     ],
-    keywords='materials informatics PAULING FILE data MPDS platform API',
+    keywords='materials informatics crystal structures phase diagrams physical properties PAULING FILE MPDS platform API',
     packages=['mpds_client'],
     install_requires=install_requires
 )
