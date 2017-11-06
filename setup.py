@@ -11,11 +11,11 @@ install_requires = [
 
 setup(
     name='mpds_client',
-    version='0.0.7',
+    version='0.0.8',
     author='Evgeny Blokhin',
     author_email='eb@tilde.pro',
     description='MPDS platform API client',
-    long_description='This Python library takes care of many aspects of the MPDS API, such as pagination, error handling, validation, proper data extraction and more. We encourage our users to adopt this library for their needs.',
+    long_description='This Python library takes care of many aspects of the [MPDS platform API](http://developer.mpds.io), such as pagination, error handling, validation, proper data extraction and more. We encourage our users to adopt this library for their needs.',
     url='https://github.com/mpds-io/python-api-client',
     license='MIT',
     classifiers=[

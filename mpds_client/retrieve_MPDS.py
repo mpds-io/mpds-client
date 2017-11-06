@@ -3,6 +3,7 @@ from __future__ import division
 import os
 import sys
 import time
+import math
 import warnings
 try: from urllib.parse import urlencode
 except ImportError: from urllib import urlencode
@@ -17,11 +18,13 @@ except ImportError:
     warnings.warn("Pandas dataframes and/or JSON querying unavailable")
 
 use_pmg, use_ase = False, False
+
 try:
     from pymatgen.core.structure import Structure
     from pymatgen.core.lattice import Lattice
     use_pmg = True
 except ImportError: pass
+
 try:
     from ase import Atom
     from ase.spacegroup import crystal
@@ -66,7 +69,7 @@ class MPDSDataRetrieval(object):
     )
 
     *or*
-    jsonobj = client.get_data({"formula":"SrTiO3"}, fields=[])
+    jsonobj = client.get_data({"formula":"SrTiO3"}, fields={})
     """
     default_fields = {
         'S': [
@@ -118,7 +121,7 @@ class MPDSDataRetrieval(object):
         self.network = httplib2.Http()
         self.endpoint = endpoint or MPDSDataRetrieval.endpoint
 
-    def _request(self, query, phases=[], page=0):
+    def _request(self, query, phases=[], page=0, pagesize=None):
         phases = ','.join([str(int(x)) for x in phases]) if phases else ''
 
         response, content = self.network.request(
@@ -126,7 +129,7 @@ class MPDSDataRetrieval(object):
                 'q': json.dumps(query),
                 'phases': phases,
                 'page': page,
-                'pagesize': MPDSDataRetrieval.pagesize
+                'pagesize': pagesize or MPDSDataRetrieval.pagesize
             }),
             method='GET',
             headers={'Key': self.api_key}
@@ -167,6 +170,28 @@ class MPDSDataRetrieval(object):
             output.append(filtered)
 
         return output
+
+    def count_data(self, search):
+        """
+        Calculate the number of entries matching the keyword(s) specified
+
+        Args:
+            search: (dict) Search query like {"categ_A": "val_A", "categ_B": "val_B"},
+                documented at http://developer.mpds.io/#Categories
+
+        Returns:
+            count (int)
+        """
+        result = self._request(search, pagesize=10)
+
+        if result['error']:
+            raise APIError(result['error'], result.get('code', 0))
+        if result['npages'] > MPDSDataRetrieval.maxnpages:
+            warnings.warn(
+                "\r\nDataset is too big, to retrieve it you may risk to change maxnpages from %s to %s" % \
+                (MPDSDataRetrieval.maxnpages, int(math.ceil(result['count']/MPDSDataRetrieval.pagesize)))
+            )
+        return result['count']
 
     def get_data(self, search, phases=[], fields=default_fields):
         """
@@ -269,7 +294,7 @@ class MPDSDataRetrieval(object):
             - basis_noneq
             - els_noneq
         e.g. like this: {'S':['cell_abc', 'sg_n', 'setting', 'basis_noneq', 'els_noneq']}
-        NB. occupancies are not considered.
+        NB. here occupancies are not retrieved.
 
         Args:
             datarow: (list) Required data to construct crystal structure:
@@ -284,7 +309,7 @@ class MPDSDataRetrieval(object):
             return None
 
         cell_abc, sg_n, setting, basis_noneq, els_noneq = \
-            datarow[-5], int(datarow[-4]), datarow[-3], datarow[-2], datarow[-1]
+            datarow[-5], int(datarow[-4]), datarow[-3], datarow[-2], datarow[-1] # [ i.encode('ascii') for i in datarow[-1] ]
 
         if flavor == 'pmg' and use_pmg:
             return Structure.from_spacegroup(
