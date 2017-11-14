@@ -10,12 +10,9 @@ except ImportError: from urllib import urlencode
 
 import httplib2
 import ujson as json
-
-try:
-    import jmespath
-    import pandas as pd
-except ImportError:
-    warnings.warn("Pandas dataframes and/or JSON querying unavailable")
+import pandas as pd
+from numpy import array_split
+import jmespath
 
 use_pmg, use_ase = False, False
 
@@ -40,12 +37,24 @@ __copyright__ = 'Copyright (c) 2017, Evgeny Blokhin, Tilde Materials Informatics
 __license__ = 'MIT'
 
 class APIError(Exception):
-    """Simple error handling"""
+    """
+    Simple error handling
+    """
     def __init__(self, msg, code=0):
         self.msg = msg
         self.code = code
     def __str__(self):
         return repr(self.msg)
+
+def _massage_atsymb(sequence):
+    """
+    Handle the difference between PY2 and PY3
+    in how pandas and ASE treat atomic symbols,
+    received from the MPDS JSON
+    """
+    if sys.version_info[0] < 3:
+        return [i.encode('ascii') for i in sequence]
+    return sequence
 
 class MPDSDataRetrieval(object):
     """
@@ -104,8 +113,9 @@ class MPDSDataRetrieval(object):
     endpoint = "https://api.mpds.io/v0/download/facet"
 
     pagesize = 1000
-    maxnpages = 100 # NB one hit may reach 50kB in RAM, consider pagesize*maxnpages*50kB free RAM
-    chillouttime = 3 # NB please, do not use values < 3, because the server may burn out
+    maxnpages = 100   # one hit may reach 50kB in RAM, consider pagesize*maxnpages*50kB free RAM
+    maxnphases = 1500 # more phases require additional requests
+    chillouttime = 3  # please, do not use values < 3, because the server may burn out
 
     def __init__(self, api_key=None, endpoint=None):
         """
@@ -212,44 +222,55 @@ class MPDSDataRetrieval(object):
             documented at http://developer.mpds.io/#JSON-schemata
         """
         output = []
-        counter, hits_count = 0, 0
         fields = {
             key: [jmespath.compile(item) if isinstance(item, str) else item() for item in value]
             for key, value in fields.items()
         } if fields else None
+        tot_count = 0
 
-        while True:
-            result = self._request(search, phases=phases, page=counter)
-            if result['error']:
-                raise APIError(result['error'], result.get('code', 0))
+        if len(phases) > MPDSDataRetrieval.maxnphases:
+            all_phases = array_split(phases, int(math.ceil(
+                len(phases)/MPDSDataRetrieval.maxnphases
+            )))
+        else: all_phases = [phases]
 
-            if result['npages'] > MPDSDataRetrieval.maxnpages:
-                raise APIError(
-                    "Too much hits (%s > %s), please, be more specific" % \
-                    (result['count'], MPDSDataRetrieval.maxnpages*MPDSDataRetrieval.pagesize),
-                    1
-                )
-            assert result['npages'] > 0
+        nsteps = len(all_phases)
 
-            output.extend(self._massage(result['out'], fields))
+        for step, current_phases in enumerate(all_phases, start=1):
 
-            if hits_count and hits_count != result['count']:
-                raise APIError("API error: hits count has been changed during the query")
-            hits_count = result['count']
+            counter, hits_count = 0, 0
+            while True:
+                result = self._request(search, phases=list(current_phases), page=counter)
+                if result['error']:
+                    raise APIError(result['error'], result.get('code', 0))
 
-            if counter == result['npages'] - 1:
-                break
+                if result['npages'] > MPDSDataRetrieval.maxnpages:
+                    raise APIError(
+                        "Too much hits (%s > %s), please, be more specific" % \
+                        (result['count'], MPDSDataRetrieval.maxnpages*MPDSDataRetrieval.pagesize),
+                        1
+                    )
+                output.extend(self._massage(result['out'], fields))
 
-            counter += 1
-            time.sleep(MPDSDataRetrieval.chillouttime)
+                if hits_count and hits_count != result['count']:
+                    raise APIError("API error: hits count has been changed during the query")
+                hits_count = result['count']
 
-            sys.stdout.write("\r\t%d%%" % ((counter/result['npages']) * 100))
-            sys.stdout.flush()
+                if counter == result['npages'] - 1:
+                    break
 
-        if len(output) != hits_count:
+                counter += 1
+                time.sleep(MPDSDataRetrieval.chillouttime)
+
+                sys.stdout.write("\r\t%d%% of step %s from %s" % ((counter/result['npages']) * 100, step, nsteps))
+                sys.stdout.flush()
+
+            tot_count += hits_count
+
+        if len(output) != tot_count:
             raise APIError("API error: collected and declared counts of hits differ")
 
-        sys.stdout.write("\r\nGot %s hits\r\n" % hits_count)
+        sys.stdout.write("\r\nGot %s hits\r\n" % tot_count)
         sys.stdout.flush()
         return output
 
@@ -309,7 +330,7 @@ class MPDSDataRetrieval(object):
             return None
 
         cell_abc, sg_n, setting, basis_noneq, els_noneq = \
-            datarow[-5], int(datarow[-4]), datarow[-3], datarow[-2], datarow[-1] # [ i.encode('ascii') for i in datarow[-1] ]
+            datarow[-5], int(datarow[-4]), datarow[-3], datarow[-2], _massage_atsymb(datarow[-1])
 
         if flavor == 'pmg' and use_pmg:
             return Structure.from_spacegroup(
