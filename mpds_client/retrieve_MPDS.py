@@ -131,7 +131,7 @@ class MPDSDataRetrieval(object):
         self.network = httplib2.Http()
         self.endpoint = endpoint or MPDSDataRetrieval.endpoint
 
-    def _request(self, query, phases=[], page=0, pagesize=None):
+    def _request(self, query, phases=(), page=0, pagesize=None):
         phases = ','.join([str(int(x)) for x in phases]) if phases else ''
 
         response, content = self.network.request(
@@ -203,7 +203,7 @@ class MPDSDataRetrieval(object):
             )
         return result['count']
 
-    def get_data(self, search, phases=[], fields=default_fields):
+    def get_data(self, search, phases=(), fields=default_fields):
         """
         Retrieve data in JSON.
         JSON is expected to be valid against the schema
@@ -246,7 +246,7 @@ class MPDSDataRetrieval(object):
 
                 if result['npages'] > MPDSDataRetrieval.maxnpages:
                     raise APIError(
-                        "Too much hits (%s > %s), please, be more specific" % \
+                        "Too many hits (%s > %s), please, be more specific" % \
                         (result['count'], MPDSDataRetrieval.maxnpages*MPDSDataRetrieval.pagesize),
                         1
                     )
@@ -297,6 +297,18 @@ class MPDSDataRetrieval(object):
 
         return pd.DataFrame(self.get_data(*args, **kwargs), columns=columns)
 
+    def get_crystals(self, search={}, phases=(), flavor='pmg'):
+        search["props"] = "atomic structure"
+
+        crystals = []
+        for crystal_struct in self.get_data(search, phases, fields={'S':['cell_abc', 'sg_n', 'setting', 'basis_noneq', 'els_noneq']}):
+            try:
+                crystals.append(self.compile_crystal(crystal_struct, flavor))
+            except ValueError:
+                pass  # Cannot create crystal structure
+
+        return crystals
+
     @staticmethod
     def compile_crystal(datarow, flavor='pmg'):
         """
@@ -327,7 +339,7 @@ class MPDSDataRetrieval(object):
             - if flavor is ase, returns ASE Atoms object
         """
         if not datarow or not datarow[-1]:
-            return None
+            raise ValueError("Crystal structure not found in data row")
 
         cell_abc, sg_n, setting, basis_noneq, els_noneq = \
             datarow[-5], int(datarow[-4]), datarow[-3], datarow[-2], _massage_atsymb(datarow[-1])
