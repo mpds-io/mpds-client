@@ -129,7 +129,7 @@ class MPDSDataRetrieval(object):
         """
         self.api_key = api_key if api_key else os.environ['MPDS_KEY']
         self.network = httplib2.Http()
-        self.endpoint = endpoint or MPDSDataRetrieval.endpoint
+        self.endpoint = endpoint or self.endpoint
 
     def _request(self, query, phases=[], page=0, pagesize=None):
         phases = ','.join([str(int(x)) for x in phases]) if phases else ''
@@ -139,7 +139,7 @@ class MPDSDataRetrieval(object):
                 'q': json.dumps(query),
                 'phases': phases,
                 'page': page,
-                'pagesize': pagesize or MPDSDataRetrieval.pagesize
+                'pagesize': pagesize or self.pagesize
             }),
             method='GET',
             headers={'Key': self.api_key}
@@ -196,10 +196,10 @@ class MPDSDataRetrieval(object):
 
         if result['error']:
             raise APIError(result['error'], result.get('code', 0))
-        if result['npages'] > MPDSDataRetrieval.maxnpages:
+        if result['npages'] > self.maxnpages:
             warnings.warn(
                 "\r\nDataset is too big, to retrieve it you may risk to change maxnpages from %s to %s" % \
-                (MPDSDataRetrieval.maxnpages, int(math.ceil(result['count']/MPDSDataRetrieval.pagesize)))
+                (self.maxnpages, int(math.ceil(result['count']/self.pagesize)))
             )
         return result['count']
 
@@ -228,9 +228,9 @@ class MPDSDataRetrieval(object):
         } if fields else None
         tot_count = 0
 
-        if len(phases) > MPDSDataRetrieval.maxnphases:
+        if len(phases) > self.maxnphases:
             all_phases = array_split(phases, int(math.ceil(
-                len(phases)/MPDSDataRetrieval.maxnphases
+                len(phases)/self.maxnphases
             )))
         else: all_phases = [phases]
 
@@ -244,10 +244,10 @@ class MPDSDataRetrieval(object):
                 if result['error']:
                     raise APIError(result['error'], result.get('code', 0))
 
-                if result['npages'] > MPDSDataRetrieval.maxnpages:
+                if result['npages'] > self.maxnpages:
                     raise APIError(
                         "Too much hits (%s > %s), please, be more specific" % \
-                        (result['count'], MPDSDataRetrieval.maxnpages*MPDSDataRetrieval.pagesize),
+                        (result['count'], self.maxnpages*self.pagesize),
                         1
                     )
                 output.extend(self._massage(result['out'], fields))
@@ -260,7 +260,7 @@ class MPDSDataRetrieval(object):
                     break
 
                 counter += 1
-                time.sleep(MPDSDataRetrieval.chillouttime)
+                time.sleep(self.chillouttime)
 
                 sys.stdout.write("\r\t%d%% of step %s from %s" % ((counter/result['npages']) * 100, step, nsteps))
                 sys.stdout.flush()
@@ -308,7 +308,7 @@ class MPDSDataRetrieval(object):
         atoms wrapped or non-wrapped into the unit cell etc.
 
         Note, that the crystal structures are not retrieved by default,
-        so one needs to specify the fields while retrieval:
+        so one needs to specify the fields during retrieval:
             - cell_abc
             - sg_n
             - setting
