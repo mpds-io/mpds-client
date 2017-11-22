@@ -69,7 +69,7 @@ class MPDSDataRetrievalTest(unittest.TestCase):
         """
         Look for intersection of query_a and query_b
         in two ways:
-        maxnphases = 10 and maxnphases = default
+        maxnphases = changed and maxnphases = default
         """
         query_a = {
             "elements": "O",
