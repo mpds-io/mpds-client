@@ -131,7 +131,7 @@ class MPDSDataRetrieval(object):
         self.network = httplib2.Http()
         self.endpoint = endpoint or self.endpoint
 
-    def _request(self, query, phases=[], page=0, pagesize=None):
+    def _request(self, query, phases=(), page=0, pagesize=None):
         phases = ','.join([str(int(x)) for x in phases]) if phases else ''
 
         response, content = self.network.request(
@@ -203,7 +203,7 @@ class MPDSDataRetrieval(object):
             )
         return result['count']
 
-    def get_data(self, search, phases=[], fields=default_fields):
+    def get_data(self, search, phases=(), fields=default_fields):
         """
         Retrieve data in JSON.
         JSON is expected to be valid against the schema
@@ -246,8 +246,8 @@ class MPDSDataRetrieval(object):
 
                 if result['npages'] > self.maxnpages:
                     raise APIError(
-                        "Too much hits (%s > %s), please, be more specific" % \
-                        (result['count'], self.maxnpages*self.pagesize),
+                        "Too many hits (%s > %s), please, be more specific" % \
+                        (result['count'], MPDSDataRetrieval.maxnpages*MPDSDataRetrieval.pagesize),
                         1
                     )
                 output.extend(self._massage(result['out'], fields))
@@ -297,6 +297,17 @@ class MPDSDataRetrieval(object):
 
         return pd.DataFrame(self.get_data(*args, **kwargs), columns=columns)
 
+    def get_crystals(self, search={}, phases=(), flavor='pmg'):
+        search["props"] = "atomic structure"
+
+        crystals = []
+        for crystal_struct in self.get_data(search, phases, fields={'S':['cell_abc', 'sg_n', 'setting', 'basis_noneq', 'els_noneq']}):
+            crystal = self.compile_crystal(crystal_struct, flavor)
+            if crystal is not None:
+                crystals.append(crystal)
+
+        return crystals
+
     @staticmethod
     def compile_crystal(datarow, flavor='pmg'):
         """
@@ -326,7 +337,12 @@ class MPDSDataRetrieval(object):
             - if flavor is pmg, returns Pymatgen Structure object
             - if flavor is ase, returns ASE Atoms object
         """
-        if not datarow or not datarow[-1]:
+        if not datarow or len(datarow) < 5:
+            raise ValueError(
+                "Must supply a data row that ends with the entries "
+                "'cell_abc', 'sg_n', 'setting', 'basis_noneq', 'els_noneq'")
+        if not datarow[-1]:
+            # This is a 'low quality' structure with no basis (just unit cell parameters)
             return None
 
         cell_abc, sg_n, setting, basis_noneq, els_noneq = \
