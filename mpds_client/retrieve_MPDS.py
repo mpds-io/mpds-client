@@ -302,10 +302,9 @@ class MPDSDataRetrieval(object):
 
         crystals = []
         for crystal_struct in self.get_data(search, phases, fields={'S':['cell_abc', 'sg_n', 'setting', 'basis_noneq', 'els_noneq']}):
-            try:
-                crystals.append(self.compile_crystal(crystal_struct, flavor))
-            except ValueError:
-                pass  # Cannot create crystal structure
+            crystal = self.compile_crystal(crystal_struct, flavor)
+            if crystal is not None:
+                crystals.append(crystal)
 
         return crystals
 
@@ -338,8 +337,13 @@ class MPDSDataRetrieval(object):
             - if flavor is pmg, returns Pymatgen Structure object
             - if flavor is ase, returns ASE Atoms object
         """
-        if not datarow or not datarow[-1]:
-            raise ValueError("Crystal structure not found in data row")
+        if not datarow or len(datarow) < 5:
+            raise ValueError(
+                "Must supply a data row that ends with the entries "
+                "'cell_abc', 'sg_n', 'setting', 'basis_noneq', 'els_noneq'")
+        if not datarow[-1]:
+            # This is a 'low quality' structure with no basis (just unit cell parameters)
+            return None
 
         cell_abc, sg_n, setting, basis_noneq, els_noneq = \
             datarow[-5], int(datarow[-4]), datarow[-3], datarow[-2], _massage_atsymb(datarow[-1])

@@ -61,11 +61,9 @@ class MPDSDataRetrievalTest(unittest.TestCase):
 
             self.assertEqual(crystal_struct[1], 136)
 
-            try:
-                ase_obj = MPDSDataRetrieval.compile_crystal(crystal_struct, 'ase')
+            ase_obj = MPDSDataRetrieval.compile_crystal(crystal_struct, 'ase')
+            if ase_obj:
                 self.assertEqual(len(ase_obj), 6)
-            except ValueError:
-                pass
 
     def test_retrieval_of_phases(self):
         """
@@ -141,7 +139,7 @@ class MPDSDataRetrievalTest(unittest.TestCase):
 
         # Now try getting the crystal from the phase ids(s)
         phase_ids = {_[0] for _ in client.get_data(query, fields={'S': ['phase_id']})}
-        crystals_from_phase_ids = client.get_crystals(query, phases=phase_ids)
+        crystals_from_phase_ids = client.get_crystals(query, phases=phase_ids, flavor='ase')
 
         self.assertEqual(len(crystals), len(crystals_from_phase_ids))
 
