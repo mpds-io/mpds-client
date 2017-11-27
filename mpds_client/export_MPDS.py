@@ -41,7 +41,7 @@ class MPDSExport(object):
         return cls.human_names.get(term, term)
 
     @classmethod
-    def export_plot(cls, data, columns, plottype, fmt='json'):
+    def save_plot(cls, data, columns, plottype, fmt='json'):
         """
         Exports the data in the following formats for plotting:
 
@@ -110,7 +110,7 @@ class MPDSExport(object):
         return fmt_export
 
     @classmethod
-    def export_df(cls, frame, tag):
+    def save_df(cls, frame, tag):
         cls._verify_export_dir()
         if not tag:
             tag = '-'
@@ -120,7 +120,7 @@ class MPDSExport(object):
         return pkl_export
 
     @classmethod
-    def export_model(cls, skmodel, tag):
+    def save_model(cls, skmodel, tag):
         from sklearn.externals import joblib
 
         cls._verify_export_dir()
