@@ -115,7 +115,7 @@ class MPDSDataRetrieval(object):
     pagesize = 1000
     maxnpages = 100   # one hit may reach 50kB in RAM, consider pagesize*maxnpages*50kB free RAM
     maxnphases = 1500 # more phases require additional requests
-    chillouttime = 3  # please, do not use values < 3, because the server may burn out
+    chillouttime = 2  # please, do not use values < 2, because the server may burn out
 
     def __init__(self, api_key=None, endpoint=None):
         """
@@ -129,7 +129,7 @@ class MPDSDataRetrieval(object):
         """
         self.api_key = api_key if api_key else os.environ['MPDS_KEY']
         self.network = httplib2.Http()
-        self.endpoint = endpoint or self.endpoint
+        self.endpoint = endpoint or MPDSDataRetrieval.endpoint
 
     def _request(self, query, phases=(), page=0, pagesize=None):
         phases = ','.join([str(int(x)) for x in phases]) if phases else ''
@@ -181,18 +181,20 @@ class MPDSDataRetrieval(object):
 
         return output
 
-    def count_data(self, search):
+    def count_data(self, search, phases=(), **kwargs):
         """
         Calculate the number of entries matching the keyword(s) specified
 
         Args:
             search: (dict) Search query like {"categ_A": "val_A", "categ_B": "val_B"},
                 documented at http://developer.mpds.io/#Categories
+            phases: (list) Phase IDs, according to the MPDS distinct phases concept
+            kwargs: just a mockup
 
         Returns:
             count (int)
         """
-        result = self._request(search, pagesize=10)
+        result = self._request(search, phases=phases, pagesize=10)
 
         if result['error']:
             raise APIError(result['error'], result.get('code', 0))
@@ -228,6 +230,7 @@ class MPDSDataRetrieval(object):
         } if fields else None
         tot_count = 0
 
+        phases = list(set(phases))
         if len(phases) > self.maxnphases:
             all_phases = array_split(phases, int(math.ceil(
                 len(phases)/self.maxnphases
@@ -256,11 +259,12 @@ class MPDSDataRetrieval(object):
                     raise APIError("API error: hits count has been changed during the query")
                 hits_count = result['count']
 
+                time.sleep(MPDSDataRetrieval.chillouttime)
+
                 if counter == result['npages'] - 1:
                     break
 
                 counter += 1
-                time.sleep(self.chillouttime)
 
                 sys.stdout.write("\r\t%d%% of step %s from %s" % ((counter/result['npages']) * 100, step, nsteps))
                 sys.stdout.flush()
@@ -337,13 +341,15 @@ class MPDSDataRetrieval(object):
             - if flavor is pmg, returns Pymatgen Structure object
             - if flavor is ase, returns ASE Atoms object
         """
-        if not datarow or len(datarow) < 5:
+        if not datarow or not datarow[-1]:
+            # this is either a P-entry with the cell data, which meets the search criterion,
+            # or a 'low quality' structure with no basis (just unit cell parameters)
+            return None
+
+        if len(datarow) < 5:
             raise ValueError(
                 "Must supply a data row that ends with the entries "
                 "'cell_abc', 'sg_n', 'setting', 'basis_noneq', 'els_noneq'")
-        if not datarow[-1]:
-            # This is a 'low quality' structure with no basis (just unit cell parameters)
-            return None
 
         cell_abc, sg_n, setting, basis_noneq, els_noneq = \
             datarow[-5], int(datarow[-4]), datarow[-3], datarow[-2], _massage_atsymb(datarow[-1])
