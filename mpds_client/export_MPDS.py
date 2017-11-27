@@ -37,7 +37,7 @@ class MPDSExport(object):
         return "".join(basename)
 
     @classmethod
-    def _get_title(term):
+    def _get_title(cls, term):
         return cls.human_names.get(term, term)
 
     @classmethod
