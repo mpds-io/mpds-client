@@ -65,6 +65,28 @@ class MPDSDataRetrievalTest(unittest.TestCase):
             if ase_obj:
                 self.assertEqual(len(ase_obj), 6)
 
+    def test_get_crystals(self):
+
+        query = {
+            "elements": "Ti-O",
+            "classes": "binary",
+            "props": "atomic structure",
+            "sgs": 136
+        }
+        client = MPDSDataRetrieval()
+        ntot = client.count_data(query)
+        self.assertTrue(150 < ntot < 175)
+
+        crystals = client.get_crystals(query, flavor='ase')
+        for crystal in crystals:
+            self.assertIsNotNone(crystal)
+
+        # now try getting the crystal from the phase_id(s)
+        phase_ids = {_[0] for _ in client.get_data(query, fields={'S': ['phase_id']})}
+        crystals_from_phase_ids = client.get_crystals(query, phases=phase_ids, flavor='ase')
+
+        self.assertEqual(len(crystals), len(crystals_from_phase_ids))
+
     def test_retrieval_of_phases(self):
         """
         Look for intersection of query_a and query_b
@@ -82,66 +104,53 @@ class MPDSDataRetrievalTest(unittest.TestCase):
             "props": "isothermal bulk modulus"
         }
 
-        origv = MPDSDataRetrieval.maxnphases
-        MPDSDataRetrieval.maxnphases = 25
         client_one = MPDSDataRetrieval()
+        client_one.maxnphases = 50
 
-        answer = client_one.get_dataframe(
+        answer_one = client_one.get_dataframe(
             query_a,
             fields={'P': ['sample.material.phase_id', 'sample.material.chemical_formula']},
             columns=['Phid', 'Object']
         )
-        answer = answer[np.isfinite(answer['Phid'])]
+        answer_one = answer_one[np.isfinite(answer_one['Phid'])]
+        phases_one = answer_one['Phid'].astype(int).tolist()
+
+        self.assertTrue(len(phases_one) > client_one.maxnphases)
+
         result_one = client_one.get_dataframe(
             query_b,
             fields={'P': ['sample.material.phase_id', 'sample.material.chemical_formula']},
             columns=['Phid', 'Object'],
-            phases=answer['Phid'].astype(int).tolist()
+            phases=phases_one
         )
 
-        MPDSDataRetrieval.maxnphases = origv
         client_two = MPDSDataRetrieval()
+        self.assertEqual(client_two.maxnphases, MPDSDataRetrieval.maxnphases)
 
-        answer = client_two.get_dataframe(
+        answer_two = client_two.get_dataframe(
             query_a,
             fields={'P': ['sample.material.phase_id', 'sample.material.chemical_formula']},
             columns=['Phid', 'Object']
         )
-        answer = answer[np.isfinite(answer['Phid'])]
+        answer_two = answer_two[np.isfinite(answer_two['Phid'])]
+        phases_two = answer_two['Phid'].astype(int).tolist()
+
+        self.assertTrue(len(phases_two) < client_two.maxnphases)
+
         result_two = client_two.get_dataframe(
             query_b,
             fields={'P': ['sample.material.phase_id', 'sample.material.chemical_formula']},
             columns=['Phid', 'Object'],
-            phases=answer['Phid'].astype(int).tolist()
+            phases=phases_two
         )
 
-        # get df difference and assure in none
+        self.assertEqual(len(result_one), len(result_two))
+
+        # check equality of result_one and result_two
         merge = pd.concat([result_one, result_two])
         merge = merge.reset_index(drop=True)
         merge_gpby = merge.groupby(list(merge.columns))
         idx = [x[0] for x in merge_gpby.groups.values() if len(x) == 1]
         self.assertTrue(merge.reindex(idx).empty)
-
-    def test_get_crystals(self):
-        query = {
-            "elements": "Ti-O",
-            "classes": "binary",
-            "props": "atomic structure",
-            "sgs": 136
-        }
-        client = MPDSDataRetrieval()
-        ntot = client.count_data(query)
-        self.assertTrue(150 < ntot < 175)
-
-        crystals = client.get_crystals(query, flavor='ase')
-        for crystal in crystals:
-            self.assertIsNotNone(crystal)
-
-        # Now try getting the crystal from the phase ids(s)
-        phase_ids = {_[0] for _ in client.get_data(query, fields={'S': ['phase_id']})}
-        crystals_from_phase_ids = client.get_crystals(query, phases=phase_ids, flavor='ase')
-
-        self.assertEqual(len(crystals), len(crystals_from_phase_ids))
-
 
 if __name__ == "__main__": unittest.main()
