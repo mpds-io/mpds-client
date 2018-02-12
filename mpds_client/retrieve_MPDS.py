@@ -318,7 +318,12 @@ class MPDSDataRetrieval(object):
         Helper method for representing the MPDS crystal structures in two flavors:
         either as a Pymatgen Structure object, or as an ASE Atoms object.
 
-        Attention! These two flavors are not compatible, e.g.
+        Attention #1. Disordered structures (i.e. fractional indices in the chemical formulae)
+        are not supported by this method, and hence the occupancies are not retrieved.
+        Currently it's up to the user to take care of that (see e.g.
+        https://doi.org/10.1186/s13321-016-0129-3 etc.).
+
+        Attention #2. Pymatgen and ASE flavors are generally not compatible, e.g.
         primitive vs. crystallographic cell is defaulted,
         atoms wrapped or non-wrapped into the unit cell etc.
 
@@ -330,7 +335,6 @@ class MPDSDataRetrieval(object):
             - basis_noneq
             - els_noneq
         e.g. like this: {'S':['cell_abc', 'sg_n', 'setting', 'basis_noneq', 'els_noneq']}
-        NB. here occupancies are not retrieved.
 
         Args:
             datarow: (list) Required data to construct crystal structure:
