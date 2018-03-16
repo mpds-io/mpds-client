@@ -4,6 +4,7 @@ exporting the MPDS data
 """
 import os
 import random
+import cPickle
 
 import ujson as json
 
@@ -15,7 +16,7 @@ class MPDSExport(object):
     export_dir = "/tmp/_MPDS"
 
     human_names = {
-        'length': 'Bond lengths, &#8491;',
+        'length': 'Bond lengths, A',
         'occurrence': 'Counts',
         'bandgap': 'Band gap, eV'
     }
@@ -121,12 +122,11 @@ class MPDSExport(object):
 
     @classmethod
     def save_model(cls, skmodel, tag):
-        from sklearn.externals import joblib
-
         cls._verify_export_dir()
         if not tag:
             tag = '-'
 
         pkl_export = os.path.join(cls.export_dir, 'ml' + str(tag) + '_' + cls._gen_basename() + ".pkl")
-        joblib.dump(skmodel, pkl_export)
+        with open(pkl_export, 'wb') as f:
+            cPickle.dump(skmodel, f, cPickle.HIGHEST_PROTOCOL)
         return pkl_export
