@@ -50,7 +50,7 @@ class MPDSExport(object):
         json: for a web-app at https://mpds.io/visavis
         """
         cls._verify_export_dir()
-        plot = {"type": plottype, "payload": {}}
+        plot = {"use_visavis_type": plottype, "payload": {}}
 
         if isinstance(data, pd.DataFrame):
             iter_data = data.iterrows
@@ -113,7 +113,7 @@ class MPDSExport(object):
     @classmethod
     def save_df(cls, frame, tag):
         cls._verify_export_dir()
-        if not tag:
+        if tag is None:
             tag = '-'
 
         pkl_export = os.path.join(cls.export_dir, 'df' + str(tag) + '_' + cls._gen_basename() + ".pkl")
@@ -123,7 +123,7 @@ class MPDSExport(object):
     @classmethod
     def save_model(cls, skmodel, tag):
         cls._verify_export_dir()
-        if not tag:
+        if tag is None:
             tag = '-'
 
         pkl_export = os.path.join(cls.export_dir, 'ml' + str(tag) + '_' + cls._gen_basename() + ".pkl")

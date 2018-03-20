@@ -12,7 +12,7 @@ install_requires = [
 
 setup(
     name='mpds_client',
-    version='0.0.14',
+    version='0.0.15',
     author='Evgeny Blokhin',
     author_email='eb@tilde.pro',
     description='MPDS platform API client',
@@ -30,7 +30,6 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6'
