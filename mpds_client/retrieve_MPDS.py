@@ -33,7 +33,7 @@ if not use_pmg and not use_ase:
     warnings.warn("Crystal structure treatment unavailable")
 
 __author__ = 'Evgeny Blokhin <eb@tilde.pro>'
-__copyright__ = 'Copyright (c) 2017, Evgeny Blokhin, Tilde Materials Informatics'
+__copyright__ = 'Copyright (c) 2017-2018, Evgeny Blokhin, Tilde Materials Informatics'
 __license__ = 'MIT'
 
 class APIError(Exception):
@@ -41,6 +41,7 @@ class APIError(Exception):
     Simple error handling
     """
     def __init__(self, msg, code=0):
+        Exception.__init__(self)
         self.msg = msg
         self.code = code
     def __str__(self):
@@ -306,9 +307,9 @@ class MPDSDataRetrieval(object):
 
         crystals = []
         for crystal_struct in self.get_data(search, phases, fields={'S':['cell_abc', 'sg_n', 'setting', 'basis_noneq', 'els_noneq']}):
-            crystal = self.compile_crystal(crystal_struct, flavor)
-            if crystal is not None:
-                crystals.append(crystal)
+            crobj = self.compile_crystal(crystal_struct, flavor)
+            if crobj is not None:
+                crystals.append(crobj)
 
         return crystals
 

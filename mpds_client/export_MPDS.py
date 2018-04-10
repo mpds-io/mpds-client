@@ -33,7 +33,7 @@ class MPDSExport(object):
     def _gen_basename(cls):
         basename = []
         random.seed()
-        for i in range(12):
+        for _ in range(12):
             basename.append(random.choice("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"))
         return "".join(basename)
 

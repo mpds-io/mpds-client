@@ -1,4 +1,4 @@
-import os.path
+
 import unittest
 import httplib2
 
