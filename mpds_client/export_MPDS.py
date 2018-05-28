@@ -39,10 +39,10 @@ class MPDSExport(object):
 
     @classmethod
     def _get_title(cls, term):
-        return cls.human_names.get(term, term)
+        return cls.human_names.get(term, term.capitalize())
 
     @classmethod
-    def save_plot(cls, data, columns, plottype, fmt='json'):
+    def save_plot(cls, data, columns, plottype, fmt='json', **kwargs):
         """
         Exports the data in the following formats for plotting:
 
@@ -102,6 +102,9 @@ class MPDSExport(object):
                         plot["payload"]["meshes"][-1]["x"].append(row[pointers[0]])
                         plot["payload"]["meshes"][-1]["y"].append(row[pointers[1]])
                         plot["payload"]["meshes"][-1]["z"].append(row[pointers[2]])
+
+            if kwargs:
+                plot["payload"].update(kwargs)
 
             else: raise RuntimeError("\r\nError: %s is an unknown plot type" % plottype)
 
