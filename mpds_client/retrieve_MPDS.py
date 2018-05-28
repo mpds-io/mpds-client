@@ -36,6 +36,11 @@ __author__ = 'Evgeny Blokhin <eb@tilde.pro>'
 __copyright__ = 'Copyright (c) 2017-2018, Evgeny Blokhin, Tilde Materials Informatics'
 __license__ = 'MIT'
 
+class MPDSDataTypes(object):
+    PEER_REVIEWED = 1
+    MACHINE_LEARNING = 2
+    ALL = 7
+
 class APIError(Exception):
     """
     Simple error handling
@@ -44,6 +49,7 @@ class APIError(Exception):
         Exception.__init__(self)
         self.msg = msg
         self.code = code
+
     def __str__(self):
         return repr(self.msg)
 
@@ -55,6 +61,7 @@ def _massage_atsymb(sequence):
     """
     if sys.version_info[0] < 3:
         return [i.encode('ascii') for i in sequence]
+
     return sequence
 
 class MPDSDataRetrieval(object):
@@ -118,7 +125,7 @@ class MPDSDataRetrieval(object):
     maxnphases = 1500 # more phases require additional requests
     chillouttime = 2  # please, do not use values < 2, because the server may burn out
 
-    def __init__(self, api_key=None, endpoint=None):
+    def __init__(self, api_key=None, endpoint=None, dtype=None):
         """
         MPDS API consumer constructor
 
@@ -131,6 +138,7 @@ class MPDSDataRetrieval(object):
         self.api_key = api_key if api_key else os.environ['MPDS_KEY']
         self.network = httplib2.Http()
         self.endpoint = endpoint or MPDSDataRetrieval.endpoint
+        self.dtype = dtype or MPDSDataTypes.PEER_REVIEWED
 
     def _request(self, query, phases=(), page=0, pagesize=None):
         phases = ','.join([str(int(x)) for x in phases]) if phases else ''
@@ -140,7 +148,8 @@ class MPDSDataRetrieval(object):
                 'q': json.dumps(query),
                 'phases': phases,
                 'page': page,
-                'pagesize': pagesize or self.pagesize
+                'pagesize': pagesize or self.pagesize,
+                'dtype': self.dtype
             }),
             method='GET',
             headers={'Key': self.api_key}
@@ -148,12 +157,15 @@ class MPDSDataRetrieval(object):
 
         if response.status != 200:
             return {'error': 'HTTP error code %s' % response.status, 'code': response.status}
+
         try:
             content = json.loads(content)
         except:
             return {'error': 'Unreadable data obtained'}
+
         if content.get('error'):
             return {'error': content['error']}
+
         if not content['out']:
             return {'error': 'No hits', 'code': 1}
 
@@ -167,6 +179,7 @@ class MPDSDataRetrieval(object):
 
         for item in array:
             filtered = []
+
             for object_type in ['S', 'P', 'C']:
                 if item['object_type'] == object_type:
                     for expr in fields.get(object_type, []):
@@ -176,7 +189,7 @@ class MPDSDataRetrieval(object):
                             filtered.append(expr)
                     break
             else:
-                raise APIError("API error: unknown data type")
+                raise APIError("API error: unknown entry type")
 
             output.append(filtered)
 
@@ -199,11 +212,13 @@ class MPDSDataRetrieval(object):
 
         if result['error']:
             raise APIError(result['error'], result.get('code', 0))
+
         if result['npages'] > self.maxnpages:
             warnings.warn(
                 "\r\nDataset is too big, to retrieve it you may risk to change maxnpages from %s to %s" % \
                 (self.maxnpages, int(math.ceil(result['count']/self.pagesize)))
             )
+
         return result['count']
 
     def get_data(self, search, phases=(), fields=default_fields):
@@ -229,9 +244,11 @@ class MPDSDataRetrieval(object):
             key: [jmespath.compile(item) if isinstance(item, str) else item() for item in value]
             for key, value in fields.items()
         } if fields else None
+
         tot_count = 0
 
         phases = list(set(phases))
+
         if len(phases) > self.maxnphases:
             all_phases = array_split(phases, int(math.ceil(
                 len(phases)/self.maxnphases
@@ -243,6 +260,7 @@ class MPDSDataRetrieval(object):
         for step, current_phases in enumerate(all_phases, start=1):
 
             counter, hits_count = 0, 0
+
             while True:
                 result = self._request(search, phases=list(current_phases), page=counter)
                 if result['error']:
@@ -252,12 +270,13 @@ class MPDSDataRetrieval(object):
                     raise APIError(
                         "Too many hits (%s > %s), please, be more specific" % \
                         (result['count'], MPDSDataRetrieval.maxnpages*MPDSDataRetrieval.pagesize),
-                        1
+                        2
                     )
                 output.extend(self._massage(result['out'], fields))
 
                 if hits_count and hits_count != result['count']:
                     raise APIError("API error: hits count has been changed during the query")
+
                 hits_count = result['count']
 
                 time.sleep(MPDSDataRetrieval.chillouttime)
@@ -277,6 +296,7 @@ class MPDSDataRetrieval(object):
 
         sys.stdout.write("\r\nGot %s hits\r\n" % tot_count)
         sys.stdout.flush()
+
         return output
 
     def get_dataframe(self, *args, **kwargs):
@@ -307,6 +327,7 @@ class MPDSDataRetrieval(object):
 
         crystals = []
         for crystal_struct in self.get_data(search, phases, fields={'S':['cell_abc', 'sg_n', 'setting', 'basis_noneq', 'els_noneq']}):
+
             crobj = self.compile_crystal(crystal_struct, flavor)
             if crobj is not None:
                 crystals.append(crobj)
@@ -319,7 +340,7 @@ class MPDSDataRetrieval(object):
         Helper method for representing the MPDS crystal structures in two flavors:
         either as a Pymatgen Structure object, or as an ASE Atoms object.
 
-        Attention #1. Disordered structures (i.e. fractional indices in the chemical formulae)
+        Attention #1. Disordered structures (e.g. fractional indices in the chemical formulae)
         are not supported by this method, and hence the occupancies are not retrieved.
         Currently it's up to the user to take care of that (see e.g.
         https://doi.org/10.1186/s13321-016-0129-3 etc.).
