@@ -95,7 +95,7 @@ class MPDSDataRetrieval(object):
             'sg_n',
             'entry',
             lambda: 'crystal structure',
-            lambda: 'A'
+            lambda: 'angstrom'
         ],
         'P': [
             'sample.material.phase_id',
@@ -121,7 +121,7 @@ class MPDSDataRetrieval(object):
     endpoint = "https://api.mpds.io/v0/download/facet"
 
     pagesize = 1000
-    maxnpages = 100   # one hit may reach 50kB in RAM, consider pagesize*maxnpages*50kB free RAM
+    maxnpages = 120   # one hit may reach 50kB in RAM, consider pagesize*maxnpages*50kB free RAM
     maxnphases = 1500 # more phases require additional requests
     chillouttime = 2  # please, do not use values < 2, because the server may burn out
 
