@@ -7,12 +7,12 @@ install_requires = [
     'pandas',
     'jmespath',
     'jsonschema',
-    'ase' # also pymatgen is supported
+    'ase==3.15' # also pymatgen is supported
 ]
 
 setup(
     name='mpds_client',
-    version='0.0.16',
+    version='0.0.17',
     author='Evgeny Blokhin',
     author_email='eb@tilde.pro',
     description='MPDS platform API client',
