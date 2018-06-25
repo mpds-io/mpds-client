@@ -4,10 +4,8 @@ exporting the MPDS data
 """
 import os
 import random
-import cPickle
 
 import ujson as json
-
 import pandas as pd
 
 
@@ -125,6 +123,7 @@ class MPDSExport(object):
 
     @classmethod
     def save_model(cls, skmodel, tag):
+        import cPickle
         cls._verify_export_dir()
         if tag is None:
             tag = '-'
