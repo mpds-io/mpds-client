@@ -73,7 +73,7 @@ class MPDSDataRetrieval(object):
     """
     An example Python implementation
     of the API consumer for the MPDS platform,
-    see http://developer.mpds.io
+    see https://developer.mpds.io
 
     Usage:
     $>export MPDS_KEY=...
@@ -222,7 +222,7 @@ class MPDSDataRetrieval(object):
 
         Args:
             search: (dict) Search query like {"categ_A": "val_A", "categ_B": "val_B"},
-                documented at http://developer.mpds.io/#Categories
+                documented at https://developer.mpds.io/#Categories
             phases: (list) Phase IDs, according to the MPDS distinct phases concept
             kwargs: just a mockup
 
@@ -236,7 +236,7 @@ class MPDSDataRetrieval(object):
 
         if result['npages'] > self.maxnpages:
             warnings.warn(
-                "\r\nDataset is too big, to retrieve it you may risk to change maxnpages from %s to %s" % \
+                "\r\nDataset is too big, you may risk to change maxnpages from %s to %s" % \
                 (self.maxnpages, int(math.ceil(result['count']/self.pagesize)))
             )
 
@@ -247,19 +247,19 @@ class MPDSDataRetrieval(object):
         """
         Retrieve data in JSON.
         JSON is expected to be valid against the schema
-        at http://developer.mpds.io/mpds.schema.json
+        at https://developer.mpds.io/mpds.schema.json
 
         Args:
             search: (dict) Search query like {"categ_A": "val_A", "categ_B": "val_B"},
-                documented at http://developer.mpds.io/#Categories
+                documented at https://developer.mpds.io/#Categories
             phases: (list) Phase IDs, according to the MPDS distinct phases concept
             fields: (dict) Data of interest for C-, S-, and P-entries,
                 e.g. for phase diagrams: {'C': ['naxes', 'arity', 'shapes']},
-                documented at http://developer.mpds.io/#JSON-schemata
+                documented at https://developer.mpds.io/#JSON-schemata
 
         Returns:
             List of dicts: C-, S-, and P-entries, the format is
-            documented at http://developer.mpds.io/#JSON-schemata
+            documented at https://developer.mpds.io/#JSON-schemata
         """
         output = []
         fields = {
@@ -309,7 +309,9 @@ class MPDSDataRetrieval(object):
                 counter += 1
 
                 if self.verbose:
-                    sys.stdout.write("\r\t%d%% of step %s from %s" % ((counter/result['npages']) * 100, step, nsteps))
+                    sys.stdout.write("\r\t%d%% of step %s from %s" % (
+                        (counter/result['npages']) * 100, step, nsteps)
+                                    )
                     sys.stdout.flush()
 
             tot_count += hits_count
@@ -330,11 +332,11 @@ class MPDSDataRetrieval(object):
 
         Args:
             search: (dict) Search query like {"categ_A": "val_A", "categ_B": "val_B"},
-                documented at http://developer.mpds.io/#Categories
+                documented at https://developer.mpds.io/#Categories
             phases: (list) Phase IDs, according to the MPDS distinct phases concept
             fields: (dict) Data of interest for C-, S-, and P-entries,
                 e.g. for phase diagrams: {'C': ['naxes', 'arity', 'shapes']},
-                documented at http://developer.mpds.io/#JSON-schemata
+                documented at https://developer.mpds.io/#JSON-schemata
             columns: (list) Column names for Pandas dataframe
 
         Returns: (object) Pandas dataframe object containing the results
@@ -352,8 +354,12 @@ class MPDSDataRetrieval(object):
         search["props"] = "atomic structure"
 
         crystals = []
-        for crystal_struct in self.get_data(search, phases, fields={'S':['cell_abc', 'sg_n', 'setting', 'basis_noneq', 'els_noneq']}, **kwargs):
-
+        for crystal_struct in self.get_data(
+                search,
+                phases,
+                fields={'S':['cell_abc', 'sg_n', 'setting', 'basis_noneq', 'els_noneq']},
+                **kwargs
+        ):
             crobj = self.compile_crystal(crystal_struct, flavor)
             if crobj is not None:
                 crystals.append(crobj)
