@@ -149,7 +149,7 @@ class MPDSDataRetrieval(object):
 
         self.endpoint = endpoint or self.endpoint
         self.dtype = dtype or MPDSDataTypes.PEER_REVIEWED
-        self.verbose = verbose or self.verbose
+        self.verbose = verbose if verbose is not None else self.verbose
         self.debug = debug or self.debug
 
 
