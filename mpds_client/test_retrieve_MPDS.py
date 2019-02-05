@@ -1,10 +1,10 @@
 
 import unittest
-import httplib2
 
 import numpy as np
 import pandas as pd
 
+import httplib2
 import ujson as json
 from jsonschema import validate, Draft4Validator
 from jsonschema.exceptions import ValidationError
@@ -16,7 +16,7 @@ class MPDSDataRetrievalTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         network = httplib2.Http()
-        response, content = network.request('http://developer.mpds.io/mpds.schema.json')
+        response, content = network.request('https://developer.mpds.io/mpds.schema.json')
         assert response.status == 200
 
         cls.schema = json.loads(content)
