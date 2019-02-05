@@ -5,6 +5,7 @@ import sys
 import time
 import math
 import warnings
+
 try: from urllib.parse import urlencode
 except ImportError: from urllib import urlencode
 
@@ -33,13 +34,15 @@ if not use_pmg and not use_ase:
     warnings.warn("Crystal structure treatment unavailable")
 
 __author__ = 'Evgeny Blokhin <eb@tilde.pro>'
-__copyright__ = 'Copyright (c) 2017-2018, Evgeny Blokhin, Tilde Materials Informatics'
+__copyright__ = 'Copyright (c) 2017-2019, Evgeny Blokhin, Tilde Materials Informatics'
 __license__ = 'MIT'
+
 
 class MPDSDataTypes(object):
     PEER_REVIEWED = 1
     MACHINE_LEARNING = 2
     ALL = 7
+
 
 class APIError(Exception):
     """
@@ -53,6 +56,7 @@ class APIError(Exception):
     def __str__(self):
         return repr(self.msg)
 
+
 def _massage_atsymb(sequence):
     """
     Handle the difference between PY2 and PY3
@@ -63,6 +67,7 @@ def _massage_atsymb(sequence):
         return [i.encode('ascii') for i in sequence]
 
     return sequence
+
 
 class MPDSDataRetrieval(object):
     """
@@ -124,8 +129,11 @@ class MPDSDataRetrieval(object):
     maxnpages = 120   # one hit may reach 50kB in RAM, consider pagesize*maxnpages*50kB free RAM
     maxnphases = 1500 # more phases require additional requests
     chillouttime = 2  # please, do not use values < 2, because the server may burn out
+    verbose = True
+    debug = False
 
-    def __init__(self, api_key=None, endpoint=None, dtype=None):
+
+    def __init__(self, api_key=None, endpoint=None, dtype=None, verbose=None, debug=None):
         """
         MPDS API consumer constructor
 
@@ -136,21 +144,32 @@ class MPDSDataRetrieval(object):
         Returns: None
         """
         self.api_key = api_key if api_key else os.environ['MPDS_KEY']
-        self.network = httplib2.Http()
-        self.endpoint = endpoint or MPDSDataRetrieval.endpoint
-        self.dtype = dtype or MPDSDataTypes.PEER_REVIEWED
 
-    def _request(self, query, phases=(), page=0, pagesize=None):
+        self.network = httplib2.Http()
+
+        self.endpoint = endpoint or self.endpoint
+        self.dtype = dtype or MPDSDataTypes.PEER_REVIEWED
+        self.verbose = verbose or self.verbose
+        self.debug = debug or self.debug
+
+
+    def _request(self, query, phases=None, page=0, pagesize=None):
+
         phases = ','.join([str(int(x)) for x in phases]) if phases else ''
 
+        uri = self.endpoint + '?' + urlencode({
+            'q': json.dumps(query),
+            'phases': phases,
+            'page': page,
+            'pagesize': pagesize or self.pagesize,
+            'dtype': self.dtype
+        })
+
+        if self.debug:
+            print('curl -XGET -HKey:%s \'%s\'' % (self.api_key, uri))
+
         response, content = self.network.request(
-            uri=self.endpoint + '?' + urlencode({
-                'q': json.dumps(query),
-                'phases': phases,
-                'page': page,
-                'pagesize': pagesize or self.pagesize,
-                'dtype': self.dtype
-            }),
+            uri=uri,
             method='GET',
             headers={'Key': self.api_key}
         )
@@ -167,9 +186,10 @@ class MPDSDataRetrieval(object):
             return {'error': content['error']}
 
         if not content['out']:
-            return {'error': 'No hits', 'code': 1}
+            return {'error': 'No hits', 'code': 204}
 
         return content
+
 
     def _massage(self, array, fields):
         if not fields:
@@ -195,7 +215,8 @@ class MPDSDataRetrieval(object):
 
         return output
 
-    def count_data(self, search, phases=(), **kwargs):
+
+    def count_data(self, search, phases=None, **kwargs):
         """
         Calculate the number of entries matching the keyword(s) specified
 
@@ -221,7 +242,8 @@ class MPDSDataRetrieval(object):
 
         return result['count']
 
-    def get_data(self, search, phases=(), fields=default_fields):
+
+    def get_data(self, search, phases=None, fields=default_fields):
         """
         Retrieve data in JSON.
         JSON is expected to be valid against the schema
@@ -247,7 +269,7 @@ class MPDSDataRetrieval(object):
 
         tot_count = 0
 
-        phases = list(set(phases))
+        phases = list(set(phases)) if phases else []
 
         if len(phases) > self.maxnphases:
             all_phases = array_split(phases, int(math.ceil(
@@ -269,7 +291,7 @@ class MPDSDataRetrieval(object):
                 if result['npages'] > self.maxnpages:
                     raise APIError(
                         "Too many hits (%s > %s), please, be more specific" % \
-                        (result['count'], MPDSDataRetrieval.maxnpages*MPDSDataRetrieval.pagesize),
+                        (result['count'], self.maxnpages * self.pagesize),
                         2
                     )
                 output.extend(self._massage(result['out'], fields))
@@ -279,25 +301,28 @@ class MPDSDataRetrieval(object):
 
                 hits_count = result['count']
 
-                time.sleep(MPDSDataRetrieval.chillouttime)
+                time.sleep(self.chillouttime)
 
                 if counter == result['npages'] - 1:
                     break
 
                 counter += 1
 
-                sys.stdout.write("\r\t%d%% of step %s from %s" % ((counter/result['npages']) * 100, step, nsteps))
-                sys.stdout.flush()
+                if self.verbose:
+                    sys.stdout.write("\r\t%d%% of step %s from %s" % ((counter/result['npages']) * 100, step, nsteps))
+                    sys.stdout.flush()
 
             tot_count += hits_count
 
         if len(output) != tot_count:
             raise APIError("API error: collected and declared counts of hits differ")
 
-        sys.stdout.write("\r\nGot %s hits\r\n" % tot_count)
-        sys.stdout.flush()
+        if self.verbose:
+            sys.stdout.write("Got %s hits\r\n" % tot_count)
+            sys.stdout.flush()
 
         return output
+
 
     def get_dataframe(self, *args, **kwargs):
         """
@@ -318,21 +343,23 @@ class MPDSDataRetrieval(object):
         if columns:
             del kwargs['columns']
         else:
-            columns = MPDSDataRetrieval.default_titles
+            columns = self.default_titles
 
         return pd.DataFrame(self.get_data(*args, **kwargs), columns=columns)
 
-    def get_crystals(self, search={}, phases=(), flavor='pmg'):
+
+    def get_crystals(self, search, phases=None, flavor='pmg', **kwargs):
         search["props"] = "atomic structure"
 
         crystals = []
-        for crystal_struct in self.get_data(search, phases, fields={'S':['cell_abc', 'sg_n', 'setting', 'basis_noneq', 'els_noneq']}):
+        for crystal_struct in self.get_data(search, phases, fields={'S':['cell_abc', 'sg_n', 'setting', 'basis_noneq', 'els_noneq']}, **kwargs):
 
             crobj = self.compile_crystal(crystal_struct, flavor)
             if crobj is not None:
                 crystals.append(crobj)
 
         return crystals
+
 
     @staticmethod
     def compile_crystal(datarow, flavor='pmg'):
