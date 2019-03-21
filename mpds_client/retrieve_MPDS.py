@@ -15,7 +15,8 @@ import pandas as pd
 from numpy import array_split
 import jmespath
 
-from errors import APIError
+try: from errors import APIError
+except ImportError: from .errors import APIError
 
 use_pmg, use_ase = False, False
 

@@ -1,5 +1,6 @@
 
 import unittest
+#import warnings
 
 import numpy as np
 import pandas as pd
@@ -15,6 +16,8 @@ from retrieve_MPDS import MPDSDataRetrieval
 class MPDSDataRetrievalTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        #warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
+
         network = httplib2.Http()
         response, content = network.request('https://developer.mpds.io/mpds.schema.json')
         assert response.status == 200

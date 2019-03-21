@@ -134,5 +134,5 @@ class MPDSExport(object):
 
         pkl_export = os.path.join(cls.export_dir, 'ml' + str(tag) + '_' + cls._gen_basename() + ".pkl")
         with open(pkl_export, 'wb') as f:
-            cPickle.dump(skmodel, f, cPickle.HIGHEST_PROTOCOL)
+            cPickle.dump(skmodel, f)
         return pkl_export
