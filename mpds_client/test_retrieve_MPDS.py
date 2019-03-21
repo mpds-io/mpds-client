@@ -57,7 +57,7 @@ class MPDSDataRetrievalTest(unittest.TestCase):
         self.assertTrue(150 < ntot < 175)
 
         for crystal_struct in client.get_data(query, fields={
-            'S': ['cell_abc', 'sg_n', 'setting', 'basis_noneq', 'els_noneq']}):
+            'S': ['cell_abc', 'sg_n', 'basis_noneq', 'els_noneq']}):
 
             self.assertEqual(crystal_struct[1], 136)
 
