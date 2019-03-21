@@ -6,14 +6,16 @@ import time
 import math
 import warnings
 
-try: from urllib.parse import urlencode
-except ImportError: from urllib import urlencode
+try: from urllib import urlencode
+except ImportError: from urllib.parse import urlencode
 
 import httplib2
 import ujson as json
 import pandas as pd
 from numpy import array_split
 import jmespath
+
+from errors import APIError
 
 use_pmg, use_ase = False, False
 
@@ -42,19 +44,6 @@ class MPDSDataTypes(object):
     PEER_REVIEWED = 1
     MACHINE_LEARNING = 2
     ALL = 7
-
-
-class APIError(Exception):
-    """
-    Simple error handling
-    """
-    def __init__(self, msg, code=0):
-        Exception.__init__(self)
-        self.msg = msg
-        self.code = code
-
-    def __str__(self):
-        return repr(self.msg)
 
 
 def _massage_atsymb(sequence):
@@ -86,7 +75,7 @@ class MPDSDataRetrieval(object):
     jsonobj = client.get_data(
         {"formula":"SrTiO3", "sgs": 99, "props":"atomic properties"},
         fields={
-            'S':["entry", "cell_abc", "sg_n", "setting", "basis_noneq", "els_noneq"]
+            'S':["entry", "cell_abc", "sg_n", "basis_noneq", "els_noneq"]
         }
     )
 
@@ -357,7 +346,7 @@ class MPDSDataRetrieval(object):
         for crystal_struct in self.get_data(
                 search,
                 phases,
-                fields={'S':['cell_abc', 'sg_n', 'setting', 'basis_noneq', 'els_noneq']},
+                fields={'S':['cell_abc', 'sg_n', 'basis_noneq', 'els_noneq']},
                 **kwargs
         ):
             crobj = self.compile_crystal(crystal_struct, flavor)
@@ -383,17 +372,16 @@ class MPDSDataRetrieval(object):
         atoms wrapped or non-wrapped into the unit cell etc.
 
         Note, that the crystal structures are not retrieved by default,
-        so one needs to specify the fields during retrieval:
+        so for them one needs to specify the following fields:
             - cell_abc
             - sg_n
-            - setting
             - basis_noneq
             - els_noneq
-        e.g. like this: {'S':['cell_abc', 'sg_n', 'setting', 'basis_noneq', 'els_noneq']}
+        e.g. like this: {'S':['cell_abc', 'sg_n', 'basis_noneq', 'els_noneq']}
 
         Args:
             datarow: (list) Required data to construct crystal structure:
-                [cell_abc, sg_n, setting, basis_noneq, els_noneq]
+                [cell_abc, sg_n, basis_noneq, els_noneq]
             flavor: (str) Either "pmg", or "ase"
 
         Returns:
@@ -405,13 +393,13 @@ class MPDSDataRetrieval(object):
             # or a 'low quality' structure with no basis (just unit cell parameters)
             return None
 
-        if len(datarow) < 5:
+        if len(datarow) < 4:
             raise ValueError(
                 "Must supply a data row that ends with the entries "
-                "'cell_abc', 'sg_n', 'setting', 'basis_noneq', 'els_noneq'")
+                "'cell_abc', 'sg_n', 'basis_noneq', 'els_noneq'")
 
-        cell_abc, sg_n, setting, basis_noneq, els_noneq = \
-            datarow[-5], int(datarow[-4]), datarow[-3], datarow[-2], _massage_atsymb(datarow[-1])
+        cell_abc, sg_n, basis_noneq, els_noneq = \
+            datarow[-4], int(datarow[-3]), datarow[-2], _massage_atsymb(datarow[-1])
 
         if flavor == 'pmg' and use_pmg:
             return Structure.from_spacegroup(
@@ -423,7 +411,6 @@ class MPDSDataRetrieval(object):
 
         elif flavor == 'ase' and use_ase:
             atom_data = []
-            setting = 2 if setting == '2' else 1
 
             for num, i in enumerate(basis_noneq):
                 atom_data.append(Atom(els_noneq[num], tuple(i)))
@@ -433,7 +420,6 @@ class MPDSDataRetrieval(object):
                 spacegroup=sg_n,
                 cellpar=cell_abc,
                 primitive_cell=True,
-                setting=setting,
                 onduplicates='replace'
             )
 

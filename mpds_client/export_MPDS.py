@@ -123,7 +123,11 @@ class MPDSExport(object):
 
     @classmethod
     def save_model(cls, skmodel, tag):
-        import cPickle
+        try:
+            import cPickle
+        except ImportError:
+            import _pickle as cPickle
+
         cls._verify_export_dir()
         if tag is None:
             tag = '-'
