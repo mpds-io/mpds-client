@@ -44,6 +44,7 @@ __license__ = 'MIT'
 class MPDSDataTypes(object):
     PEER_REVIEWED = 1
     MACHINE_LEARNING = 2
+    AB_INITIO = 4
     ALL = 7
 
 
@@ -165,7 +166,7 @@ class MPDSDataRetrieval(object):
         )
 
         if response.status != 200:
-            return {'error': 'HTTP error code %s' % response.status, 'code': response.status}
+            return {'error': content, 'code': response.status}
 
         try:
             content = json.loads(content)

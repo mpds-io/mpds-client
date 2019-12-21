@@ -118,7 +118,7 @@ class MPDSExport(object):
             tag = '-'
 
         pkl_export = os.path.join(cls.export_dir, 'df' + str(tag) + '_' + cls._gen_basename() + ".pkl")
-        frame.to_pickle(pkl_export)
+        frame.to_pickle(pkl_export, protocol=2) # Py2-3 compat
         return pkl_export
 
     @classmethod
