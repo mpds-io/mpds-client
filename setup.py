@@ -7,12 +7,12 @@ install_requires = [
     'pandas',
     'jmespath',
     'jsonschema',
-    'ase==3.15' # also pymatgen is supported
+    'ase==3.17.0' # also pymatgen is supported
 ]
 
 setup(
     name='mpds_client',
-    version='0.0.21',
+    version='0.0.22',
     author='Evgeny Blokhin',
     author_email='eb@tilde.pro',
     description='MPDS platform API client',
@@ -30,9 +30,10 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6'
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8'
     ],
     keywords='materials informatics crystal structures phase diagrams physical properties PAULING FILE MPDS platform API',
     packages=['mpds_client'],
