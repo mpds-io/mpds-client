@@ -7,7 +7,7 @@ install_requires = [
     'pandas',
     'jmespath',
     'jsonschema',
-    'ase==3.17.0' # also pymatgen is supported
+    'ase==3.19.1' # also pymatgen is supported
 ]
 
 setup(
