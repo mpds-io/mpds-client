@@ -1,3 +1,4 @@
+
 from setuptools import setup
 
 install_requires = [
@@ -7,12 +8,12 @@ install_requires = [
     'pandas',
     'jmespath',
     'jsonschema',
-    'ase==3.17.0' # also pymatgen is supported
+    'ase' # also pymatgen is supported
 ]
 
 setup(
     name='mpds_client',
-    version='0.0.22',
+    version='0.23',
     author='Evgeny Blokhin',
     author_email='eb@tilde.pro',
     description='MPDS platform API client',
@@ -27,15 +28,14 @@ setup(
         'Topic :: Scientific/Engineering :: Information Analysis',
         'Topic :: Software Development :: Libraries :: Python Modules',
         'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8'
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9'
     ],
     keywords='materials informatics crystal structures phase diagrams physical properties PAULING FILE MPDS platform API',
     packages=['mpds_client'],
-    install_requires=install_requires
+    install_requires=install_requires,
+    python_requires='>=3.5'
 )

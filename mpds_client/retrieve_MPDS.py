@@ -37,7 +37,7 @@ if not use_pmg and not use_ase:
     warnings.warn("Crystal structure treatment unavailable")
 
 __author__ = 'Evgeny Blokhin <eb@tilde.pro>'
-__copyright__ = 'Copyright (c) 2017-2019, Evgeny Blokhin, Tilde Materials Informatics'
+__copyright__ = 'Copyright (c) 2020, Evgeny Blokhin, Tilde Materials Informatics'
 __license__ = 'MIT'
 
 
@@ -311,7 +311,7 @@ class MPDSDataRetrieval(object):
             raise APIError("API error: collected and declared counts of hits differ")
 
         if self.verbose:
-            sys.stdout.write("Got %s hits\r\n" % tot_count)
+            sys.stdout.write(" Got %s hits\r\n" % tot_count)
             sys.stdout.flush()
 
         return output
@@ -387,8 +387,8 @@ class MPDSDataRetrieval(object):
             flavor: (str) Either "pmg", or "ase"
 
         Returns:
-            - if flavor is pmg, returns Pymatgen Structure object
-            - if flavor is ase, returns ASE Atoms object
+            - if flavor is pmg, Pymatgen Structure object
+            - if flavor is ase, ASE Atoms object
         """
         if not datarow or not datarow[-1]:
             # this is either a P-entry with the cell data, which meets the search criterion,
