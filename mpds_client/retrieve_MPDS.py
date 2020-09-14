@@ -1,13 +1,10 @@
 
-from __future__ import division
 import os
 import sys
 import time
 import math
 import warnings
-
-try: from urllib import urlencode
-except ImportError: from urllib.parse import urlencode
+from urllib.parse import urlencode
 
 import httplib2
 import ujson as json
@@ -15,8 +12,7 @@ import pandas as pd
 from numpy import array_split
 import jmespath
 
-try: from errors import APIError
-except ImportError: from .errors import APIError
+from .errors import APIError
 
 use_pmg, use_ase = False, False
 
