@@ -44,18 +44,6 @@ class MPDSDataTypes(object):
     ALL = 7
 
 
-def _massage_atsymb(sequence):
-    """
-    Handle the difference between PY2 and PY3
-    in how pandas and ASE treat atomic symbols,
-    received from the MPDS JSON
-    """
-    if sys.version_info[0] < 3:
-        return [i.encode('ascii') for i in sequence]
-
-    return sequence
-
-
 class MPDSDataRetrieval(object):
     """
     An example Python implementation
@@ -367,7 +355,7 @@ class MPDSDataRetrieval(object):
 
         Attention #2. Pymatgen and ASE flavors are generally not compatible, e.g.
         primitive vs. crystallographic cell is defaulted,
-        atoms wrapped or non-wrapped into the unit cell etc.
+        atoms wrapped or non-wrapped into the unit cell, etc.
 
         Note, that the crystal structures are not retrieved by default,
         so for them one needs to specify the following fields:
@@ -397,7 +385,7 @@ class MPDSDataRetrieval(object):
                 "'cell_abc', 'sg_n', 'basis_noneq', 'els_noneq'")
 
         cell_abc, sg_n, basis_noneq, els_noneq = \
-            datarow[-4], int(datarow[-3]), datarow[-2], _massage_atsymb(datarow[-1])
+            datarow[-4], int(datarow[-3]), datarow[-2], datarow[-1]
 
         if flavor == 'pmg' and use_pmg:
             return Structure.from_spacegroup(
