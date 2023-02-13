@@ -228,9 +228,10 @@ class MPDSDataRetrieval(object):
             search: (dict) Search query like {"categ_A": "val_A", "categ_B": "val_B"},
                 documented at https://developer.mpds.io/#Categories
             phases: (list) Phase IDs, according to the MPDS distinct phases concept
-            fields: (dict) Data of interest for C-, S-, and P-entries,
+            fields: (dict or None) Data of interest for C-, S-, and P-entries,
                 e.g. for phase diagrams: {'C': ['naxes', 'arity', 'shapes']},
                 documented at https://developer.mpds.io/#JSON-schemata
+                (if None is given, all the fields will be present)
 
         Returns:
             List of dicts: C-, S-, and P-entries, the format is
@@ -309,9 +310,10 @@ class MPDSDataRetrieval(object):
             search: (dict) Search query like {"categ_A": "val_A", "categ_B": "val_B"},
                 documented at https://developer.mpds.io/#Categories
             phases: (list) Phase IDs, according to the MPDS distinct phases concept
-            fields: (dict) Data of interest for C-, S-, and P-entries,
+            fields: (dict or None) Data of interest for C-, S-, and P-entries,
                 e.g. for phase diagrams: {'C': ['naxes', 'arity', 'shapes']},
                 documented at https://developer.mpds.io/#JSON-schemata
+                (if None is given, all the fields will be present)
             columns: (list) Column names for Pandas dataframe
 
         Returns: (object) Pandas dataframe object containing the results
