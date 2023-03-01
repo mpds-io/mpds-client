@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Blokhin"
+  given-names: "Evgeny"
+  orcid: "https://orcid.org/0000-0002-5333-3947"
+- family-names: "Uhrin"
+  given-names: "Martin"
+  orcid: "https://orcid.org/0000-0001-6902-1289"
+title: "mpds-client"
+version: 0.24
+doi: 10.5281/zenodo.2557897
+date-released: 2020-09-14
+url: "https://github.com/mpds-io/mpds-client"
