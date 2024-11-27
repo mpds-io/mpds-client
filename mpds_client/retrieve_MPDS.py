@@ -349,7 +349,7 @@ class MPDSDataRetrieval(object):
     @staticmethod
     def compile_crystal(datarow,
                         flavor='pmg',
-                        element_check: bool = False,
+                        elements_check: bool = False,
                         elements_counter: dict[str:int] = None
                         ):
         """
@@ -420,7 +420,7 @@ class MPDSDataRetrieval(object):
         else: raise APIError("Crystal structure treatment unavailable")
 
         # Check if elements composition equal, else return None
-        if element_check and elements_counter:
+        if elements_check and elements_counter:
             if flavor == 'ase':
                 presented_atoms_data = set(data.get_chemical_symbols())
             else: # pmg
