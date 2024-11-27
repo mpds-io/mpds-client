@@ -5,6 +5,7 @@ import time
 import math
 import warnings
 from urllib.parse import urlencode
+from collections import Counter
 
 import httplib2
 import ujson as json
@@ -13,6 +14,7 @@ from numpy import array_split
 import jmespath
 
 from .errors import APIError
+from .utils import all_divmod_equal
 
 use_pmg, use_ase = False, False
 
@@ -345,7 +347,11 @@ class MPDSDataRetrieval(object):
 
 
     @staticmethod
-    def compile_crystal(datarow, flavor='pmg'):
+    def compile_crystal(datarow,
+                        flavor='pmg',
+                        element_check: bool = False,
+                        elements_counter: dict[str:int] = None
+                        ):
         """
         Helper method for representing the MPDS crystal structures in two flavors:
         either as a Pymatgen Structure object, or as an ASE Atoms object.
@@ -365,7 +371,7 @@ class MPDSDataRetrieval(object):
             - sg_n
             - basis_noneq
             - els_noneq
-        e.g. like this: {'S':['cell_abc', 'sg_n', 'basis_noneq', 'els_noneq']}
+        e.g. like this: {'S':['chemical_formula', 'cell_abc', 'sg_n', 'basis_noneq', 'els_noneq']}
 
         Args:
             datarow: (list) Required data to construct crystal structure:
@@ -390,7 +396,7 @@ class MPDSDataRetrieval(object):
             datarow[-4], int(datarow[-3]), datarow[-2], datarow[-1]
 
         if flavor == 'pmg' and use_pmg:
-            return Structure.from_spacegroup(
+            data = Structure.from_spacegroup(
                 sg_n,
                 Lattice.from_parameters(*cell_abc),
                 els_noneq,
@@ -403,7 +409,7 @@ class MPDSDataRetrieval(object):
             for num, i in enumerate(basis_noneq):
                 atom_data.append(Atom(els_noneq[num], tuple(i)))
 
-            return crystal(
+            data = crystal(
                 atom_data,
                 spacegroup=sg_n,
                 cellpar=cell_abc,
@@ -412,3 +418,18 @@ class MPDSDataRetrieval(object):
             )
 
         else: raise APIError("Crystal structure treatment unavailable")
+
+        # Check if elements composition equal, else return None
+        if element_check and elements_counter:
+            if flavor == 'ase':
+                presented_atoms_data = set(data.get_chemical_symbols())
+            else: # pmg
+                presented_atoms_data = {i.symbol for i in data.species}
+
+            if presented_atoms_data == set(elements_counter.keys()):
+                pass
+            else:
+                # Different composition
+                data = None
+
+        return data
