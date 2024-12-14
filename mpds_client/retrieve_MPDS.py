@@ -18,22 +18,26 @@ use_pmg, use_ase = False, False
 try:
     from pymatgen.core.structure import Structure
     from pymatgen.core.lattice import Lattice
+
     use_pmg = True
-except ImportError: pass
+except ImportError:
+    pass
 
 try:
     from ase import Atom
     from ase.spacegroup import crystal
+
     use_ase = True
-except ImportError: pass
+except ImportError:
+    pass
 
 
 if not use_pmg and not use_ase:
     warnings.warn("Crystal structure treatment unavailable")
 
-__author__ = 'Evgeny Blokhin <eb@tilde.pro>'
-__copyright__ = 'Copyright (c) 2020, Evgeny Blokhin, Tilde Materials Informatics'
-__license__ = 'MIT'
+__author__ = "Evgeny Blokhin <eb@tilde.pro>"
+__copyright__ = "Copyright (c) 2020, Evgeny Blokhin, Tilde Materials Informatics"
+__license__ = "MIT"
 
 
 class MPDSDataTypes(object):
@@ -67,46 +71,51 @@ class MPDSDataRetrieval(object):
     *or*
     jsonobj = client.get_data({"formula":"SrTiO3"}, fields={})
     """
+
     default_fields = {
-        'S': [
-            'phase_id',
-            'chemical_formula',
-            'sg_n',
-            'entry',
-            lambda: 'crystal structure',
-            lambda: 'angstrom'
+        "S": [
+            "phase_id",
+            "chemical_formula",
+            "sg_n",
+            "entry",
+            lambda: "crystal structure",
+            lambda: "angstrom",
         ],
-        'P': [
-            'sample.material.phase_id',
-            'sample.material.chemical_formula',
-            'sample.material.condition[0].scalar[0].value',
-            'sample.material.entry',
-            'sample.measurement[0].property.name',
-            'sample.measurement[0].property.units',
-            'sample.measurement[0].property.scalar'
+        "P": [
+            "sample.material.phase_id",
+            "sample.material.chemical_formula",
+            "sample.material.condition[0].scalar[0].value",
+            "sample.material.entry",
+            "sample.measurement[0].property.name",
+            "sample.measurement[0].property.units",
+            "sample.measurement[0].property.scalar",
         ],
-        'C': [
+        "C": [
             lambda: None,
-            'title',
+            "title",
             lambda: None,
-            'entry',
-            lambda: 'phase diagram',
-            'naxes',
-            'arity'
-        ]
+            "entry",
+            lambda: "phase diagram",
+            "naxes",
+            "arity",
+        ],
     }
-    default_titles = ['Phase', 'Formula', 'SG', 'Entry', 'Property', 'Units', 'Value']
+    default_titles = ["Phase", "Formula", "SG", "Entry", "Property", "Units", "Value"]
 
     endpoint = "https://api.mpds.io/v0/download/facet"
 
     pagesize = 1000
-    maxnpages = 120   # one hit may reach 50kB in RAM, consider pagesize*maxnpages*50kB free RAM
-    maxnphases = 1500 # more phases require additional requests
+    maxnpages = (
+        120  # one hit may reach 50kB in RAM, consider pagesize*maxnpages*50kB free RAM
+    )
+    maxnphases = 1500  # more phases require additional requests
     chillouttime = 2  # please, do not use values < 2, because the server may burn out
     verbose = True
     debug = False
 
-    def __init__(self, api_key=None, endpoint=None, dtype=None, verbose=None, debug=None):
+    def __init__(
+        self, api_key=None, endpoint=None, dtype=None, verbose=None, debug=None
+    ):
         """
         MPDS API consumer constructor
 
@@ -116,7 +125,7 @@ class MPDSDataRetrieval(object):
 
         Returns: None
         """
-        self.api_key = api_key if api_key else os.environ['MPDS_KEY']
+        self.api_key = api_key if api_key else os.environ["MPDS_KEY"]
 
         self.network = httplib2.Http()
 
@@ -126,39 +135,42 @@ class MPDSDataRetrieval(object):
         self.debug = debug or self.debug
 
     def _request(self, query, phases=None, page=0, pagesize=None):
+        phases = ",".join([str(int(x)) for x in phases]) if phases else ""
 
-        phases = ','.join([str(int(x)) for x in phases]) if phases else ''
-
-        uri = self.endpoint + '?' + urlencode({
-            'q': json.dumps(query),
-            'phases': phases,
-            'page': page,
-            'pagesize': pagesize or self.pagesize,
-            'dtype': self.dtype
-        })
+        uri = (
+            self.endpoint
+            + "?"
+            + urlencode(
+                {
+                    "q": json.dumps(query),
+                    "phases": phases,
+                    "page": page,
+                    "pagesize": pagesize or self.pagesize,
+                    "dtype": self.dtype,
+                }
+            )
+        )
 
         if self.debug:
-            print('curl -XGET -HKey:%s \"%s\"' % (self.api_key, uri))
+            print('curl -XGET -HKey:%s "%s"' % (self.api_key, uri))
 
         response, content = self.network.request(
-            uri=uri,
-            method='GET',
-            headers={'Key': self.api_key}
+            uri=uri, method="GET", headers={"Key": self.api_key}
         )
 
         if response.status != 200:
-            return {'error': content, 'code': response.status}
+            return {"error": content, "code": response.status}
 
         try:
             content = json.loads(content)
         except:
-            return {'error': 'Unreadable data obtained'}
+            return {"error": "Unreadable data obtained"}
 
-        if content.get('error'):
-            return {'error': content['error']}
+        if content.get("error"):
+            return {"error": content["error"]}
 
-        if not content['out']:
-            return {'error': 'No hits', 'code': 204}
+        if not content["out"]:
+            return {"error": "No hits", "code": 204}
 
         return content
 
@@ -171,8 +183,8 @@ class MPDSDataRetrieval(object):
         for item in array:
             filtered = []
 
-            for object_type in ['S', 'P', 'C']:
-                if item['object_type'] == object_type:
+            for object_type in ["S", "P", "C"]:
+                if item["object_type"] == object_type:
                     for expr in fields.get(object_type, []):
                         if isinstance(expr, jmespath.parser.ParsedResult):
                             filtered.append(expr.search(item))
@@ -201,16 +213,16 @@ class MPDSDataRetrieval(object):
         """
         result = self._request(search, phases=phases, pagesize=10)
 
-        if result['error']:
-            raise APIError(result['error'], result.get('code', 0))
+        if result["error"]:
+            raise APIError(result["error"], result.get("code", 0))
 
-        if result['npages'] > self.maxnpages:
+        if result["npages"] > self.maxnpages:
             warnings.warn(
-                "\r\nDataset is too big, you may risk to change maxnpages from %s to %s" % \
-                (self.maxnpages, int(math.ceil(result['count']/self.pagesize)))
+                "\r\nDataset is too big, you may risk to change maxnpages from %s to %s"
+                % (self.maxnpages, int(math.ceil(result["count"] / self.pagesize)))
             )
 
-        return result['count']
+        return result["count"]
 
     def get_data(self, search, phases=None, fields=default_fields):
         """
@@ -232,56 +244,68 @@ class MPDSDataRetrieval(object):
             documented at https://developer.mpds.io/#JSON-schemata
         """
         output = []
-        fields = {
-            key: [jmespath.compile(item) if isinstance(item, str) else item() for item in value]
-            for key, value in fields.items()
-        } if fields else None
+        fields = (
+            {
+                key: [
+                    jmespath.compile(item) if isinstance(item, str) else item()
+                    for item in value
+                ]
+                for key, value in fields.items()
+            }
+            if fields
+            else None
+        )
 
         tot_count = 0
 
         phases = list(set(phases)) if phases else []
 
         if len(phases) > self.maxnphases:
-            all_phases = array_split(phases, int(math.ceil(
-                len(phases)/self.maxnphases
-            )))
-        else: all_phases = [phases]
+            all_phases = array_split(
+                phases, int(math.ceil(len(phases) / self.maxnphases))
+            )
+        else:
+            all_phases = [phases]
 
         nsteps = len(all_phases)
 
         for step, current_phases in enumerate(all_phases, start=1):
-
             counter, hits_count = 0, 0
 
             while True:
-                result = self._request(search, phases=list(current_phases), page=counter)
-                if result['error']:
-                    raise APIError(result['error'], result.get('code', 0))
+                result = self._request(
+                    search, phases=list(current_phases), page=counter
+                )
+                if result["error"]:
+                    raise APIError(result["error"], result.get("code", 0))
 
-                if result['npages'] > self.maxnpages:
+                if result["npages"] > self.maxnpages:
                     raise APIError(
-                        "Too many hits (%s > %s), please, be more specific" % \
-                        (result['count'], self.maxnpages * self.pagesize),
-                        2
+                        "Too many hits (%s > %s), please, be more specific"
+                        % (result["count"], self.maxnpages * self.pagesize),
+                        2,
                     )
-                output.extend(self._massage(result['out'], fields))
+                output.extend(self._massage(result["out"], fields))
 
-                if hits_count and hits_count != result['count']:
-                    raise APIError("API error: hits count has been changed during the query")
+                if hits_count and hits_count != result["count"]:
+                    raise APIError(
+                        "API error: hits count has been changed during the query"
+                    )
 
-                hits_count = result['count']
+                hits_count = result["count"]
 
                 time.sleep(self.chillouttime)
 
-                if counter == result['npages'] - 1:
+                if counter == result["npages"] - 1:
                     break
 
                 counter += 1
 
                 if self.verbose:
-                    sys.stdout.write("\r\t%d%% of step %s from %s" % (
-                        (counter/result['npages']) * 100, step, nsteps)
-                                        )
+                    sys.stdout.write(
+                        "\r\t%d%% of step %s from %s"
+                        % ((counter / result["npages"]) * 100, step, nsteps)
+                    )
                     sys.stdout.flush()
 
             tot_count += hits_count
@@ -311,24 +335,24 @@ class MPDSDataRetrieval(object):
 
         Returns: (object) Polars dataframe object containing the results
         """
-        columns = kwargs.get('columns')
+        columns = kwargs.get("columns")
         if columns:
-            del kwargs['columns']
+            del kwargs["columns"]
         else:
             columns = self.default_titles
 
         data = self.get_data(*args, **kwargs)
         return pl.DataFrame(data, schema=columns)
 
-    def get_crystals(self, search, phases=None, flavor='pmg', **kwargs):
+    def get_crystals(self, search, phases=None, flavor="pmg", **kwargs):
         search["props"] = "atomic structure"
 
         crystals = []
         for crystal_struct in self.get_data(
-                search,
-                phases,
-                fields={'S':['cell_abc', 'sg_n', 'basis_noneq', 'els_noneq']},
-                **kwargs
+            search,
+            phases,
+            fields={"S": ["cell_abc", "sg_n", "basis_noneq", "els_noneq"]},
+            **kwargs,
         ):
             crobj = self.compile_crystal(crystal_struct, flavor)
             if crobj is not None:
@@ -337,7 +361,7 @@ class MPDSDataRetrieval(object):
         return crystals
 
     @staticmethod
-    def compile_crystal(datarow, flavor='pmg'):
+    def compile_crystal(datarow, flavor="pmg"):
         """
         Helper method for representing the MPDS crystal structures in two flavors:
         either as a Pymatgen Structure object, or as an ASE Atoms object.
@@ -376,20 +400,22 @@ class MPDSDataRetrieval(object):
         if len(datarow) < 4:
             raise ValueError(
                 "Must supply a data row that ends with the entries "
-                "'cell_abc', 'sg_n', 'basis_noneq', 'els_noneq'")
-
-        cell_abc, sg_n, basis_noneq, els_noneq = \
-            datarow[-4], int(datarow[-3]), datarow[-2], datarow[-1]
-
-        if flavor == 'pmg' and use_pmg:
-            return Structure.from_spacegroup(
-                sg_n,
-                Lattice.from_parameters(*cell_abc),
-                els_noneq,
-                basis_noneq
+                "'cell_abc', 'sg_n', 'basis_noneq', 'els_noneq'"
             )
 
-        elif flavor == 'ase' and use_ase:
+        cell_abc, sg_n, basis_noneq, els_noneq = (
+            datarow[-4],
+            int(datarow[-3]),
+            datarow[-2],
+            datarow[-1],
+        )
+
+        if flavor == "pmg" and use_pmg:
+            return Structure.from_spacegroup(
+                sg_n, Lattice.from_parameters(*cell_abc), els_noneq, basis_noneq
+            )
+
+        elif flavor == "ase" and use_ase:
             atom_data = []
 
             for num, i in enumerate(basis_noneq):
@@ -400,8 +426,8 @@ class MPDSDataRetrieval(object):
                 spacegroup=sg_n,
                 cellpar=cell_abc,
                 primitive_cell=True,
-                onduplicates='replace'
+                onduplicates="replace",
             )
 
-        else: raise APIError("Crystal structure treatment unavailable")
-        
+        else:
+            raise APIError("Crystal structure treatment unavailable")
