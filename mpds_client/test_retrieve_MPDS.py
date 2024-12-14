@@ -1,9 +1,7 @@
-
 import unittest
 #import warnings
 
-import numpy as np
-import pandas as pd
+import polars as pl
 
 import httplib2
 import ujson as json
@@ -11,6 +9,7 @@ from jsonschema import validate, Draft4Validator
 from jsonschema.exceptions import ValidationError
 
 from retrieve_MPDS import MPDSDataRetrieval
+import logging
 
 
 class MPDSDataRetrievalTest(unittest.TestCase):
@@ -69,7 +68,6 @@ class MPDSDataRetrievalTest(unittest.TestCase):
                 self.assertEqual(len(ase_obj), 6)
 
     def test_get_crystals(self):
-
         query = {
             "elements": "Ti-O",
             "classes": "binary",
@@ -78,6 +76,7 @@ class MPDSDataRetrievalTest(unittest.TestCase):
         }
         client = MPDSDataRetrieval()
         ntot = client.count_data(query)
+        logging.debug(f"Value of ntot: {ntot}")
         self.assertTrue(150 < ntot < 175)
 
         crystals = client.get_crystals(query, flavor='ase')
@@ -115,9 +114,14 @@ class MPDSDataRetrievalTest(unittest.TestCase):
             fields={'P': ['sample.material.phase_id', 'sample.material.chemical_formula']},
             columns=['Phid', 'Object']
         )
-        answer_one = answer_one[np.isfinite(answer_one['Phid'])]
-        phases_one = answer_one['Phid'].astype(int).tolist()
+        if not(isinstance(answer_one, pl.DataFrame)):
+            print(type(answer_one))
+            raise ValueError("answer_one is not a Polars DataFrame", type(answer_one))
 
+        answer_one = answer_one.filter(pl.col('Phid').is_not_null())
+        answer_one = answer_one.with_columns(pl.col('Phid').cast(pl.Int32))
+        phases_one = answer_one['Phid'].to_list()
+        
         self.assertTrue(len(phases_one) > client_one.maxnphases)
 
         result_one = client_one.get_dataframe(
@@ -135,8 +139,12 @@ class MPDSDataRetrievalTest(unittest.TestCase):
             fields={'P': ['sample.material.phase_id', 'sample.material.chemical_formula']},
             columns=['Phid', 'Object']
         )
-        answer_two = answer_two[np.isfinite(answer_two['Phid'])]
-        phases_two = answer_two['Phid'].astype(int).tolist()
+        if not(isinstance(answer_one, pl.DataFrame)):
+            print(type(answer_two))
+            raise ValueError("answer_one is not a Polars DataFrame, is", type(answer_two))
+        
+        answer_two = answer_two.filter(pl.col('Phid').is_not_null())
+        phases_two = answer_two['Phid'].cast(pl.Int32).to_list()
 
         self.assertTrue(len(phases_two) < client_two.maxnphases)
 
@@ -150,10 +158,13 @@ class MPDSDataRetrievalTest(unittest.TestCase):
         self.assertEqual(len(result_one), len(result_two))
 
         # check equality of result_one and result_two
-        merge = pd.concat([result_one, result_two])
-        merge = merge.reset_index(drop=True)
-        merge_gpby = merge.groupby(list(merge.columns))
-        idx = [x[0] for x in merge_gpby.groups.values() if len(x) == 1]
-        self.assertTrue(merge.reindex(idx).empty)
+        merge = pl.concat([result_one, result_two])
+        merge = merge.with_columns(pl.Series("index", range(len(merge))))
+        merge_gpby = merge.group_by(list(merge.columns), maintain_order=True).agg(pl.len())
+        idx = [x[0] for x in merge_gpby.iter_rows() if x[-1] == 1]
 
-if __name__ == "__main__": unittest.main()
+        self.assertTrue(merge.filter(pl.col("index").is_in(idx)).is_empty())
+
+if __name__ == "__main__": 
+    logging.basicConfig(level=logging.DEBUG)
+    unittest.main()

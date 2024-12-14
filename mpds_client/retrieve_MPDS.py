@@ -1,4 +1,3 @@
-
 import os
 import sys
 import time
@@ -8,11 +7,11 @@ from urllib.parse import urlencode
 
 import httplib2
 import ujson as json
-import pandas as pd
+import polars as pl
 from numpy import array_split
 import jmespath
 
-from .errors import APIError
+from errors import APIError
 
 use_pmg, use_ase = False, False
 
@@ -107,7 +106,6 @@ class MPDSDataRetrieval(object):
     verbose = True
     debug = False
 
-
     def __init__(self, api_key=None, endpoint=None, dtype=None, verbose=None, debug=None):
         """
         MPDS API consumer constructor
@@ -127,7 +125,6 @@ class MPDSDataRetrieval(object):
         self.verbose = verbose if verbose is not None else self.verbose
         self.debug = debug or self.debug
 
-
     def _request(self, query, phases=None, page=0, pagesize=None):
 
         phases = ','.join([str(int(x)) for x in phases]) if phases else ''
@@ -141,7 +138,7 @@ class MPDSDataRetrieval(object):
         })
 
         if self.debug:
-            print('curl -XGET -HKey:%s \'%s\'' % (self.api_key, uri))
+            print('curl -XGET -HKey:%s \"%s\"' % (self.api_key, uri))
 
         response, content = self.network.request(
             uri=uri,
@@ -164,7 +161,6 @@ class MPDSDataRetrieval(object):
             return {'error': 'No hits', 'code': 204}
 
         return content
-
 
     def _massage(self, array, fields):
         if not fields:
@@ -189,7 +185,6 @@ class MPDSDataRetrieval(object):
             output.append(filtered)
 
         return output
-
 
     def count_data(self, search, phases=None, **kwargs):
         """
@@ -216,7 +211,6 @@ class MPDSDataRetrieval(object):
             )
 
         return result['count']
-
 
     def get_data(self, search, phases=None, fields=default_fields):
         """
@@ -287,7 +281,7 @@ class MPDSDataRetrieval(object):
                 if self.verbose:
                     sys.stdout.write("\r\t%d%% of step %s from %s" % (
                         (counter/result['npages']) * 100, step, nsteps)
-                                    )
+                                        )
                     sys.stdout.flush()
 
             tot_count += hits_count
@@ -301,10 +295,9 @@ class MPDSDataRetrieval(object):
 
         return output
 
-
     def get_dataframe(self, *args, **kwargs):
         """
-        Retrieve data as a Pandas dataframe.
+        Retrieve data as a Polars dataframe.
 
         Args:
             search: (dict) Search query like {"categ_A": "val_A", "categ_B": "val_B"},
@@ -316,7 +309,7 @@ class MPDSDataRetrieval(object):
                 (if None is given, all the fields will be present)
             columns: (list) Column names for Pandas dataframe
 
-        Returns: (object) Pandas dataframe object containing the results
+        Returns: (object) Polars dataframe object containing the results
         """
         columns = kwargs.get('columns')
         if columns:
@@ -324,8 +317,8 @@ class MPDSDataRetrieval(object):
         else:
             columns = self.default_titles
 
-        return pd.DataFrame(self.get_data(*args, **kwargs), columns=columns)
-
+        data = self.get_data(*args, **kwargs)
+        return pl.DataFrame(data, schema=columns)
 
     def get_crystals(self, search, phases=None, flavor='pmg', **kwargs):
         search["props"] = "atomic structure"
@@ -342,7 +335,6 @@ class MPDSDataRetrieval(object):
                 crystals.append(crobj)
 
         return crystals
-
 
     @staticmethod
     def compile_crystal(datarow, flavor='pmg'):
@@ -412,3 +404,4 @@ class MPDSDataRetrieval(object):
             )
 
         else: raise APIError("Crystal structure treatment unavailable")
+        
