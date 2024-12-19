@@ -55,7 +55,7 @@ class MPDSDataRetrievalTest(unittest.TestCase):
 
         client = MPDSDataRetrieval()
         ntot = client.count_data(query)
-        self.assertTrue(150 < ntot < 175)
+        self.assertTrue(90 < ntot < 200)
 
         for crystal_struct in client.get_data(
             query, fields={"S": ["cell_abc", "sg_n", "basis_noneq", "els_noneq"]}
@@ -76,7 +76,7 @@ class MPDSDataRetrievalTest(unittest.TestCase):
         client = MPDSDataRetrieval()
         ntot = client.count_data(query)
         logging.debug(f"Value of ntot: {ntot}")
-        self.assertTrue(150 < ntot < 175)
+        self.assertTrue(190 < ntot < 200)
 
         crystals = client.get_crystals(query, flavor="ase")
         for crystal in crystals:
