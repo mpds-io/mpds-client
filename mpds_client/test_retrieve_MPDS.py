@@ -1,15 +1,17 @@
+import logging
+import os
+import tempfile
 import unittest
-# import warnings
-
-import polars as pl
+from pathlib import Path
 
 import httplib2
+import polars as pl
 import ujson as json
-from jsonschema import validate, Draft4Validator
+from jsonschema import Draft4Validator, validate
 from jsonschema.exceptions import ValidationError
+from retrieve_MPDS import MPDSDataRetrieval, MPDSDataTypes
 
-from retrieve_MPDS import MPDSDataRetrieval
-import logging
+# import warnings
 
 
 class MPDSDataRetrievalTest(unittest.TestCase):
@@ -173,6 +175,62 @@ class MPDSDataRetrievalTest(unittest.TestCase):
         idx = [x[0] for x in merge_gpby.iter_rows() if x[-1] == 1]
 
         self.assertTrue(merge.filter(pl.col("index").is_in(idx)).is_empty())
+
+    def test_download_ab_initio_logs_real_simple(self):
+        """
+        Simple real download test for ab initio logs
+        Downloads logs for one material and verifies results
+        """
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            save_dir = Path(tmp_dir)
+
+            client = MPDSDataRetrieval(dtype=MPDSDataTypes.AB_INITIO)
+            query = {
+                "props": "electrical conductivity",
+            }
+
+            # execute download with timeout
+            try:
+                downloaded_files = client.download_ab_initio_logs(
+                    search=query, save_dir=save_dir, timeout=120
+                )
+
+                if not downloaded_files:
+                    self.skipTest("No data found for the test query")
+
+                # check that some files were downloaded
+                self.assertGreater(len(downloaded_files), 0, "No files downloaded")
+
+                # check that files exist
+                for file_path in downloaded_files:
+                    self.assertTrue(
+                        file_path.exists(), f"File {file_path} does not exist"
+                    )
+                    self.assertGreater(
+                        os.path.getsize(file_path), 100, "File is too small"
+                    )
+
+                # check directory structure
+                material_dirs = list(save_dir.glob("material_*"))
+                self.assertTrue(material_dirs, "No material directories created")
+
+                # check for expected file types
+                found_out = False
+                found_dat = False
+                for file_path in downloaded_files:
+                    if file_path.suffix == ".out":
+                        found_out = True
+                    if file_path.name.endswith("SIGMA.DAT"):
+                        found_dat = True
+
+                self.assertTrue(found_out or found_dat, "No expected log files found")
+
+                logging.info(
+                    f"Successfully downloaded {len(downloaded_files)} log files"
+                )
+
+            except Exception as e:
+                self.fail(f"Download failed: {str(e)}")
 
 
 if __name__ == "__main__":
