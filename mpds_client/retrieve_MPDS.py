@@ -1,23 +1,27 @@
-import os
-import sys
-import time
+import logging
 import math
+import os
+import shutil
+import sys
+import tempfile
+import time
 import warnings
+from pathlib import Path
 from urllib.parse import urlencode
 
 import httplib2
-import ujson as json
-import polars as pl
-from numpy import array_split
 import jmespath
-
+import polars as pl
+import requests
+import ujson as json
 from errors import APIError
+from numpy import array_split
 
 use_pmg, use_ase = False, False
 
 try:
-    from pymatgen.core.structure import Structure
     from pymatgen.core.lattice import Lattice
+    from pymatgen.core.structure import Structure
 
     use_pmg = True
 except ImportError:
@@ -431,3 +435,157 @@ class MPDSDataRetrieval(object):
 
         else:
             raise APIError("Crystal structure treatment unavailable")
+
+    def download_ab_initio_logs(
+        self,
+        search: dict,
+        save_dir: Path,
+        keep_archives: bool = False,
+        timeout: int = 30,
+    ):
+        """
+        Download ab initio simulation logs (CRYSTAL .out and Fleur .xml) for materials matching the search criteria.
+
+        Args:
+            search (dict): Search query like {"props": "electrical conductivity"}
+            save_dir (str|Path): Directory to save downloaded logs
+            keep_archives (bool): Whether to keep downloaded archive files
+            timeout (int): Timeout for download requests in seconds
+
+        Returns:
+            list: Paths to downloaded log files
+        """
+        try:
+            from dft_organizer.re_archiver import extract_7z
+        except ImportError:
+            raise ImportError(
+                "dft_organizer package is required for ab initio logs download."
+            )
+
+        save_dir = Path(save_dir)
+        save_dir.mkdir(parents=True, exist_ok=True)
+        archive_dir = save_dir / "temp_archives"
+        archive_dir.mkdir(exist_ok=True)
+
+        # aetup logging
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s - %(levelname)s - %(message)s",
+            handlers=[
+                logging.StreamHandler(sys.stdout),
+                logging.FileHandler(save_dir / "ab_initio_downloader.log"),
+            ],
+        )
+        logger = logging.getLogger("MPDSDataRetrieval")
+
+        # get URLs
+        fields = {
+            "P": [
+                "sample.material.entry",
+                "sample.material.phase_id",
+                "sample.measurement[0].raw_data",
+            ]
+        }
+        data = self.get_data(search, fields=fields)
+
+        if not data:
+            logger.warning("No ab initio data found matching the search criteria")
+            return []
+
+        saved_files = []
+        for item in data:
+            material_id = item[0]
+            phase_id = item[1]
+            archive_url = item[2]
+
+            if not archive_url:
+                logger.warning(f"No archive URL for material {material_id}")
+                continue
+
+            logger.info(f"Processing material {material_id}")
+
+            try:
+                # download archive
+                response = requests.get(archive_url, timeout=timeout)
+                response.raise_for_status()
+
+                # save archive
+                archive_path = archive_dir / f"material_{material_id}.7z"
+                with open(archive_path, "wb") as f:
+                    f.write(response.content)
+                logger.info(f"Saved archive: {archive_path}")
+
+                # unpack
+                material_files = self._extract_logs(
+                    archive_path, material_id, phase_id, save_dir, extract_7z, logger
+                )
+                saved_files.extend(material_files)
+                logger.info(
+                    f"Extracted {len(material_files)} logs for material {material_id}"
+                )
+
+                # delete archive if not keeping archives
+                if not keep_archives:
+                    archive_path.unlink()
+
+            except Exception as e:
+                logger.error(f"Error processing material {material_id}: {str(e)}")
+
+        # delete temp archive dir if not keeping archives
+        if not keep_archives:
+            shutil.rmtree(archive_dir, ignore_errors=True)
+
+        logger.info(f"Downloaded {len(saved_files)} log files in total")
+        return saved_files
+
+    def _extract_logs(
+        self, archive_path: Path, material_id: str, phase_id: str, save_dir: Path, extract_func, logger
+    ):
+        """Extract engines logs by extract_7z"""
+        material_dir = save_dir / f"material_{material_id}"
+        material_dir.mkdir(exist_ok=True)
+        saved_files = []
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+
+            # unpack archive
+            success = extract_func(archive_path, tmp_path)
+            if not success:
+                logger.error(f"Failed to extract archive: {archive_path.name}")
+                return saved_files
+
+            logger.debug(f"Extracted archive: {archive_path.name} to {tmp_path}")
+
+            # try to find and save log files
+            for file_path in tmp_path.rglob("*"):
+                if not file_path.is_file():
+                    continue
+
+                # check if the file is a log file
+                if (
+                    file_path.suffix in (".out", ".xml")
+                    or file_path.name == "SIGMA.DAT"
+                    or "TRANSPORT" in file_path.parts
+                ):
+
+                    # create new name with phase info
+                    new_name = f"phase_{phase_id}_{file_path.name}"
+                    dest_path = material_dir / new_name
+
+                    shutil.copy2(file_path, dest_path)
+                    saved_files.append(dest_path)
+                    logger.info(f"Saved log: {dest_path}")
+
+        return saved_files
+
+
+if __name__ == "__main__":
+    client = MPDSDataRetrieval(dtype=MPDSDataTypes.AB_INITIO)
+    downloaded_files = client.download_ab_initio_logs(
+        search={"props": "electrical conductivity"},
+        save_dir="./ab_initio_logs",
+        keep_archives=False,
+    )
+
+    print(f"Downloaded {len(downloaded_files)} log files")
