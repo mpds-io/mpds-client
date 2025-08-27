@@ -5,7 +5,7 @@ install_requires = [
     'httplib2',
     'ujson',
     'numpy',
-    'pandas',
+    'polars',
     'jmespath',
     'jsonschema',
     'ase' # also pymatgen is supported
