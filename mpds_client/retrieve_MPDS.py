@@ -1,3 +1,4 @@
+
 import os
 import sys
 import time
@@ -20,6 +21,7 @@ try:
     from pymatgen.core.lattice import Lattice
 
     use_pmg = True
+
 except ImportError:
     pass
 
@@ -28,6 +30,7 @@ try:
     from ase.spacegroup import crystal
 
     use_ase = True
+
 except ImportError:
     pass
 
@@ -105,9 +108,7 @@ class MPDSDataRetrieval(object):
     endpoint = "https://api.mpds.io/v0/download/facet"
 
     pagesize = 1000
-    maxnpages = (
-        120  # one hit may reach 50kB in RAM, consider pagesize*maxnpages*50kB free RAM
-    )
+    maxnpages = 120  # one hit may reach 50kB in RAM, consider pagesize*maxnpages*50kB free RAM
     maxnphases = 1500  # more phases require additional requests
     chillouttime = 2  # please, do not use values < 2, because the server may burn out
     verbose = True
@@ -331,7 +332,7 @@ class MPDSDataRetrieval(object):
                 e.g. for phase diagrams: {'C': ['naxes', 'arity', 'shapes']},
                 documented at https://developer.mpds.io/#JSON-schemata
                 (if None is given, all the fields will be present)
-            columns: (list) Column names for Pandas dataframe
+            columns: (list) Column names for a dataframe
 
         Returns: (object) Polars dataframe object containing the results
         """

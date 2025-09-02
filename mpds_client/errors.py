@@ -1,3 +1,4 @@
+
 class APIError(Exception):
     """
     Simple error handling
