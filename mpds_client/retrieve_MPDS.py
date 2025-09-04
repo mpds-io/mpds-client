@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 import httplib2
 import jmespath
 import polars as pl
+import py7zr
 import requests
 import ujson as json
 from errors import APIError
@@ -435,6 +436,17 @@ class MPDSDataRetrieval(object):
 
         else:
             raise APIError("Crystal structure treatment unavailable")
+        
+    @staticmethod
+    def extract_7z(archive_path: Path, target_dir: Path):
+        """Unpack 7z archive to target dir"""
+        try:
+            with py7zr.SevenZipFile(archive_path, mode='r') as archive:
+                archive.extractall(target_dir)
+            return True
+        except Exception as e:
+            print(f"Error during unpack {archive_path}: {e}")
+            return False
 
     def download_ab_initio_logs(
         self,
@@ -455,13 +467,6 @@ class MPDSDataRetrieval(object):
         Returns:
             list: Paths to downloaded log files
         """
-        try:
-            from dft_organizer.re_archiver import extract_7z
-        except ImportError:
-            raise ImportError(
-                "dft_organizer package is required for ab initio logs download."
-            )
-
         save_dir = Path(save_dir)
         save_dir.mkdir(parents=True, exist_ok=True)
         archive_dir = save_dir / "temp_archives"
@@ -517,7 +522,7 @@ class MPDSDataRetrieval(object):
 
                 # unpack
                 material_files = self._extract_logs(
-                    archive_path, material_id, phase_id, save_dir, extract_7z, logger
+                    archive_path, material_id, phase_id, save_dir, self.extract_7z, logger
                 )
                 saved_files.extend(material_files)
                 logger.info(
@@ -541,7 +546,7 @@ class MPDSDataRetrieval(object):
     def _extract_logs(
         self, archive_path: Path, material_id: str, phase_id: str, save_dir: Path, extract_func, logger
     ):
-        """Extract engines logs by extract_7z"""
+        """Extract engines logs"""
         material_dir = save_dir / f"material_{material_id}"
         material_dir.mkdir(exist_ok=True)
         saved_files = []
